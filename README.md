@@ -5,4 +5,14 @@
 - [Dawid Leśkiewicz](https://github.com/283974-dawidleskiewicz) *283974*
 
 ## Uruchomienie
-...
+### Serwer
+```sh
+mvn clean compile
+mvn exec:java -Pserver
+```
+
+### Klient
+```sh
+mvn clean compile
+mvn exec:java -Pclient
+```
