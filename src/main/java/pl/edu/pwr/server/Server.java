@@ -1,5 +1,6 @@
 package pl.edu.pwr.server;
 
+import pl.edu.pwr.logic.Game;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
@@ -38,6 +39,9 @@ public class Server {
         tempOut2.println("[SERWER] Polaczono jako Gracz 2 (BIALY). Gra sie rozpoczyna");
         
         tempOut1.println("[SERWER] Przeciwnik dolaczyl. Gra sie rozpoczyna!");
+
+        Game game = new Game(19);
+
         ClientHandler handler1 = new ClientHandler(player1, 1);
         ClientHandler handler2 = new ClientHandler(player2, 2);
 

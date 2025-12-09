@@ -44,4 +44,8 @@ public class ClientFacade {
       e.printStackTrace();
     }
   }
+
+  public void sendMove(int x, int y) {
+      sendMessage("MOVE " + x + " " + y);
+  }
 }
