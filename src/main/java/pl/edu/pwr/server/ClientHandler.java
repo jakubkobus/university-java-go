@@ -15,13 +15,15 @@ public class ClientHandler implements Runnable {
   private PrintWriter out;
   private int playerId;
   private ClientHandler opponent;
+  private Stone myColor;
 
   private Game game;
 
-  public ClientHandler(Socket socket, int playerId) {
+  public ClientHandler(Socket socket, int playerId, Game game) {
     this.socket = socket;
     this.playerId = playerId;
     this.game = game;
+    this.myColor = (playerId == 1) ? Stone.BLACK : Stone.WHITE;
   }
 
   public void setOpponent(ClientHandler opponent) {
@@ -75,7 +77,6 @@ public class ClientHandler implements Runnable {
           int x = Integer.parseInt(parts[1]);
           int y = Integer.parseInt(parts[2]);
 
-          Stone myColor = (playerId == 1) ? Stone.BLACK : Stone.WHITE;
 
           if (game.getCurrentPlayer() != myColor) {
               sendMessage("ERR Not your turn");

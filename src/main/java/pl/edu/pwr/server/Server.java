@@ -42,8 +42,8 @@ public class Server {
 
         Game game = new Game(19);
 
-        ClientHandler handler1 = new ClientHandler(player1, 1);
-        ClientHandler handler2 = new ClientHandler(player2, 2);
+        ClientHandler handler1 = new ClientHandler(player1, 1, game);
+        ClientHandler handler2 = new ClientHandler(player2, 2, game);
 
         handler1.setOpponent(handler2);
         handler2.setOpponent(handler1);
