@@ -10,7 +10,7 @@ public class Game {
   private Stone currentPlayer = Stone.BLACK;
 
   public Game(int size) {
-    this.board = new Board(size);
+    this.board = BoardFactory.createBoard(size);
   }
 
   public synchronized boolean makeMove(int x, int y) {
