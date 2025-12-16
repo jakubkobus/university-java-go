@@ -12,6 +12,8 @@ public class ClientFacade {
   private PrintWriter out;
   private Thread listenerThread;
 
+  private static final String CLEAR_CONSOLE = "\033[H\033[2J";
+
   public void connect(String host, int port) throws IOException {
     socket = new Socket(host, port);
     in = new Scanner(socket.getInputStream());
@@ -21,13 +23,25 @@ public class ClientFacade {
       try {
         while(in.hasNextLine()) {
           String message = in.nextLine();
-          System.out.print("\r" + message + "\n> ");
+
+          if(message.equals("CLS")) {
+            clearScreen();
+            continue;
+          }
+
+          System.out.println(message);          
         }
       } catch(Exception e) {
         System.out.println("\n[KLIENT] Utracono polaczenie z serwerem");
       }
     });
     listenerThread.start();
+  }
+
+  private void clearScreen() {
+    System.out.print(CLEAR_CONSOLE);
+    System.out.flush();
+    System.out.println("--- GRA GO ---");
   }
 
   public void sendMessage(String message) {

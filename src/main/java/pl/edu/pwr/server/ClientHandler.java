@@ -16,7 +16,6 @@ public class ClientHandler implements Runnable {
   private int playerId;
   private ClientHandler opponent;
   private Stone myColor;
-
   private Game game;
 
   public ClientHandler(Socket socket, int playerId, Game game) {
@@ -36,23 +35,20 @@ public class ClientHandler implements Runnable {
       in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
       out = new PrintWriter(socket.getOutputStream(), true);
 
-      out.println("CONNECTED AS " + (playerId == 1 ? "BLACK" : "WHITE"));
+      sendBoard();
+      out.println("Jestes graczem: " + (playerId == 1 ? "CZARNYM (B)" : "BIALYM (W)"));
 
       String inputLine;
       while((inputLine = in.readLine()) != null) {
         System.out.println("[Gracz " + playerId + "] " + inputLine);
 
-        out.println("[SERWER] Otrzymano '" + inputLine + "'");
-
-        if (inputLine.startsWith("MOVE")) {
-            handleMove(inputLine);
-            continue;
+        if(inputLine.startsWith("MOVE")) {
+          handleMove(inputLine);
+          continue;
         }
 
-        out.println("[SERWER] Otrzymano '" + inputLine + "'");
-
         if(opponent != null) {
-          opponent.sendMessage("[PRZECIWNIK] Otrzymano '" + inputLine + "'");
+          opponent.sendMessage("CHAT: " + inputLine);
         }
       }
     } catch(IOException e) {
@@ -67,47 +63,46 @@ public class ClientHandler implements Runnable {
   }
 
   private void handleMove(String input) {
-      try {
-          String[] parts = input.split(" ");
-          if (parts.length != 3) {
-              sendMessage("ERR Wrong MOVE format. Use: MOVE x y");
-              return;
-          }
-
-          int x = Integer.parseInt(parts[1]);
-          int y = Integer.parseInt(parts[2]);
-
-
-          if (game.getCurrentPlayer() != myColor) {
-              sendMessage("ERR Not your turn");
-              return;
-          }
-
-          boolean ok;
-          synchronized (game) {
-              ok = game.makeMove(x, y);
-          }
-
-          if (!ok) {
-              sendMessage("ERR Invalid move");
-              return;
-          }
-
-          sendMessage("OK MOVE " + x + " " + y);
-          if (opponent != null) {
-              opponent.sendMessage("OPPONENT_MOVE " + x + " " + y);
-          }
-          String boardView = game.getBoard().toString();
-
-          sendMessage("BOARD:\n" + boardView);
-          if (opponent != null) {
-              opponent.sendMessage("BOARD:\n" + boardView);
-          }
-
-
-      } catch (NumberFormatException e) {
-          sendMessage("ERR MOVE parameters must be numbers");
+    try {
+      String[] parts = input.split(" ");
+      if(parts.length != 3) {
+        sendMessage("ERR Zly format. Uzyj: MOVE x y");
+        return;
       }
+
+      int x = Integer.parseInt(parts[1]) - 1;
+      int y = Integer.parseInt(parts[2]) - 1;
+
+      if(game.getCurrentPlayer() != myColor) {
+        sendMessage("ERR To nie Twoja tura!");
+        return;
+      }
+
+      boolean ok;
+      synchronized (game) {
+        ok = game.makeMove(x, y);
+      }
+
+      if(!ok) {
+        sendMessage("ERR Ruch niedozwolony (zajete lub poza plansza)");
+        return;
+      }
+
+      sendBoard();
+      if(opponent != null) {
+        opponent.sendBoard();
+        opponent.sendMessage("INFO: Przeciwnik wykonal ruch: " + (x + 1) + " " + (y + 1));
+      }
+      sendMessage("INFO: Wykonano ruch: " + (x + 1) + " " + (y + 1));
+
+    } catch(NumberFormatException e) {
+      sendMessage("ERR Wspolrzedne musza byc liczbami");
+    }
+  }
+
+  public void sendBoard() {
+    out.println("CLS");
+    out.println(game.getBoard().toString());
   }
 
   public void sendMessage(String message) {
