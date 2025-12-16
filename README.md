@@ -6,13 +6,22 @@
 
 ## Uruchomienie
 ### Serwer
-```sh
+```bash
 mvn clean compile
 mvn exec:java -Pserver
 ```
 
 ### Klient
-```sh
+```bash
 mvn clean compile
 mvn exec:java -Pclient
 ```
+
+## Zastosowane wzorce projektowe
+1. **Singleton** : `pl.edu.pwr.server.*`
+2. **Facade** : `pl.edu.pwr.client.ClientFacade`
+3. **Command** : `pl.edu.pwr.server.commands.*`
+4. **Factory Method** : `pl.edu.pwr.logic.BoardFactory`
+
+## Diagram klas
+![Diagram klas](docs/class_diagram.png)
