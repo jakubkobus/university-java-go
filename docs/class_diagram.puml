@@ -1,0 +1,107 @@
+@startuml class_diagram
+title Gra w GO (projekt - technologia programowania)
+skinparam classAttributeIconSize 0
+
+package "pl.edu.pwr.logic" {
+  enum Stone {
+    BLACK
+    WHITE
+    NONE
+  }
+
+  class Board {
+    - size : int
+    - grid : Stone[][]
+    + Board(size : int)
+    + getNeighbors(x: int, y: int) : List<Point>
+    + placeStone(x: int, y: int, s: Stone) : void
+    + toString() : String
+  }
+
+  class BoardFactory <<Factory Method>> {
+    + {static} createBoard(size: int) : Board
+  }
+
+  class Game {
+    - currentPlayer : Stone
+    - board : Board
+    + Game(size: int)
+    + makeMove(x: int, y: int) : boolean
+    - checkCaptures(...)
+    - countLiberties(...)
+  }
+
+  Game "1" *-- "1" Board : zawiera >
+  Game ..> BoardFactory : używa >
+  Board *-- Stone
+}
+
+package "pl.edu.pwr.server" {
+  class ServerApp {
+    + {static} main(args: String[])
+  }
+
+  class Server <<Singleton>> {
+    - {static} instance : Server
+    - isRunning : boolean
+    - Server()
+    + {static} getInstance() : Server
+    + start(port: int)
+  }
+
+  class ClientHandler implements Runnable {
+    - socket : Socket
+    - playerId : int
+    - myColor : Stone
+    - commands : Map<String, Command>
+    + run()
+    + setOpponent(opponent: ClientHandler)
+    + sendBoard()
+    + sendMessage(msg: String)
+  }
+
+  package "commands" {
+    interface Command <<Command>> {
+      + execute(args: String[], sender: ClientHandler)
+    }
+
+    class MoveCommand implements Command {
+      - game : Game
+      + MoveCommand(game: Game)
+      + execute(...)
+    }
+  }
+
+  ServerApp ..> Server : używa >
+  Server "1" o-- "*" ClientHandler : tworzy >
+  ClientHandler o-- Command : wykonuje >
+  ClientHandler --> Game : odnosi się do >
+  MoveCommand --> Game : modyfikuje >
+}
+
+package "pl.edu.pwr.client" {
+  class ClientApp {
+    + {static} main(args: String[])
+  }
+
+  class ClientFacade <<Facade>> {
+    - socket : Socket
+    - in : Scanner
+    - out : PrintWriter
+    - view : ConsoleView
+    + connect(host: String, port: int)
+    + sendMove(x: int, y: int)
+    + sendMessage(msg: String)
+  }
+
+  class ConsoleView {
+    + displayMessage(msg: String)
+    + clearScreen()
+    + displayPrompt()
+  }
+
+  ClientApp ..> ClientFacade : używa >
+  ClientFacade *-- ConsoleView : używa >
+}
+
+@enduml
