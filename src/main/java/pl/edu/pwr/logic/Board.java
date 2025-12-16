@@ -5,6 +5,23 @@ public class Board {
     private final int size;
     private final Stone[][] grid;
 
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+
+        for (int y = 0; y < size; y++) {
+            for (int x = 0; x < size; x++) {
+                switch (grid[x][y]) {
+                    case BLACK -> sb.append("X ");
+                    case WHITE -> sb.append("O ");
+                    case NONE  -> sb.append(". ");
+                }
+            }
+            sb.append("\n");
+        }
+        return sb.toString();
+    }
+
     public Board(int size) {
         this.size = size;
         this.grid = new Stone[size][size];

@@ -97,6 +97,13 @@ public class ClientHandler implements Runnable {
           if (opponent != null) {
               opponent.sendMessage("OPPONENT_MOVE " + x + " " + y);
           }
+          String boardView = game.getBoard().toString();
+
+          sendMessage("BOARD:\n" + boardView);
+          if (opponent != null) {
+              opponent.sendMessage("BOARD:\n" + boardView);
+          }
+
 
       } catch (NumberFormatException e) {
           sendMessage("ERR MOVE parameters must be numbers");
