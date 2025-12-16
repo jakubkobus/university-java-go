@@ -1,7 +1,9 @@
 package pl.edu.pwr.logic;
 
-public class Board {
+import java.util.ArrayList;
+import java.util.List;
 
+public class Board {
   private final int size;
   private final Stone[][] grid;
 
@@ -13,6 +15,20 @@ public class Board {
         grid[i][j] = Stone.NONE;
       }
     }
+  }
+
+  public List<Point> getNeighbors(int x, int y) {
+    List<Point> neighbors = new ArrayList<>();
+    int[][] directions = {{0, 1}, {0, -1}, {1, 0}, {-1, 0}};
+
+    for (int[] d : directions) {
+      int nx = x + d[0];
+      int ny = y + d[1];
+      if (isWithinBounds(nx, ny)) {
+        neighbors.add(new Point(nx, ny));
+      }
+    }
+    return neighbors;
   }
 
   @Override
@@ -57,4 +73,6 @@ public class Board {
   public void placeStone(int x, int y, Stone stone) {
     grid[x][y] = stone;
   }
+
+  public record Point(int x, int y) {}
 }
