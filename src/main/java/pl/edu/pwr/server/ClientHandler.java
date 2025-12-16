@@ -55,20 +55,16 @@ public class ClientHandler implements Runnable {
       out.println("Jestes graczem: " + (playerId == 1 ? "CZARNYM (B)" : "BIALYM (W)"));
 
       String inputLine;
-      while ((inputLine = in.readLine()) != null) {
+      while((inputLine = in.readLine()) != null) {
         System.out.println("[Gracz " + playerId + "] " + inputLine);
 
         String[] parts = inputLine.split(" ");
         String commandName = parts[0].toUpperCase();
 
-        if (commands.containsKey(commandName)) {
+        if(commands.containsKey(commandName)) {
           commands.get(commandName).execute(parts, this);
         } else {
-          if (opponent != null) {
-            opponent.sendMessage("CHAT: " + inputLine);
-          } else {
-            sendMessage("ERR Nieznana komenda");
-          }
+          sendMessage("ERR Nieznana komenda. Dostepne: MOVE x y");
         }
       }
     } catch (IOException e) {
@@ -76,7 +72,7 @@ public class ClientHandler implements Runnable {
     } finally {
       try {
         socket.close();
-      } catch (IOException e) {
+      } catch(IOException e) {
         e.printStackTrace();
       }
     }
@@ -85,6 +81,14 @@ public class ClientHandler implements Runnable {
   public void sendBoard() {
     out.println("CLS");
     out.println(game.getBoard().toString());
+
+    if(game.getCurrentPlayer() == myColor) {
+      out.println("--- TWOJA TURA (" + (myColor == Stone.BLACK ? "CZARNY" : "BIALY") + ") ---");
+      out.println("Wpisz ruch (np. MOVE 1 1) >");
+    } else {
+      out.println("--- TURA PRZECIWNIKA ---");
+      out.println("Czekaj...");
+    }
   }
 
   public void sendMessage(String message) {

@@ -10,7 +10,7 @@ public class ConsoleView {
   public void clearScreen() {
     System.out.print(CLEAR_CONSOLE);
     System.out.flush();
-    System.out.println("--- GRA GO ---");
+    System.out.println("------------------------- GRA W GO ------------------------");
   }
 
   public void displayPrompt() {
