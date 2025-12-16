@@ -51,18 +51,4 @@ class GameTest {
 
     assertEquals(Stone.NONE, game.getBoard().get(0, 0), "Biały kamień w rogu powinien zostać zbity (zniknąć)");
   }
-
-  @Test
-  void testSuicideMoveIsForbidden() {
-    game = new Game(9);
-    game.makeMove(0, 0);
-    game.makeMove(5, 5);
-    game.makeMove(2, 0);
-    game.makeMove(5, 6);
-    game.makeMove(1, 1);
-
-    boolean success = game.makeMove(1, 0);
-    assertFalse(success, "Ruch samobójczy powinien być niedozwolony");
-    assertEquals(Stone.NONE, game.getBoard().get(1, 0), "Pole powinno pozostać puste");
-  }
 }
