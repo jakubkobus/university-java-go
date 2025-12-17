@@ -23,12 +23,20 @@ package "pl.edu.pwr.logic" {
   }
 
   class Game {
-    - currentPlayer : Stone
     - board : Board
+    - currentPlayer : Stone
+    - blackPrisoners : int
+    - whitePrisoners : int
     + Game(size: int)
     + makeMove(x: int, y: int) : boolean
+    + getBoard() : Board
+    + getCurrentPlayer() : Stone
+    + getBlackPrisoners() : int
+    + getWhitePrisoners() : int
     - checkCaptures(...)
-    - countLiberties(...)
+    - countSingleStoneLiberties(...)
+    - captureSingleStone(...)
+    - switchPlayer() : void
   }
 
   Game "1" *-- "1" Board : zawiera >
