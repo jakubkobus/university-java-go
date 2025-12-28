@@ -51,4 +51,44 @@ class GameTest {
 
     assertEquals(Stone.NONE, game.getBoard().get(0, 0), "Biały kamień w rogu powinien zostać zbity (zniknąć)");
   }
+
+    @Test
+    void suicideMoveIsForbidden() {
+        Game game = new Game(19);
+
+        game.makeMove(1, 0); // B
+        game.makeMove(10, 10); // W dummy
+        game.makeMove(0, 1); // B
+        game.makeMove(11, 11); // W dummy
+        game.makeMove(2, 1); // B
+        game.makeMove(12, 12); // W dummy
+        game.makeMove(1, 2); // B
+
+        boolean allowed = game.makeMove(1, 1);
+
+        assertFalse(allowed, "Ruch samobójczy powinien być zabroniony");
+    }
+    @Test
+    void suicideThatCapturesOpponentIsAllowed() {
+        Game game = new Game(19);
+
+        game.makeMove(1, 0); // B
+        game.makeMove(18, 18); // W dummy
+        game.makeMove(1, 1); // B
+        game.makeMove(10, 10); // W dummy
+        game.makeMove(1, 2); // B
+        game.makeMove(12, 12); // W dummy
+        game.makeMove(0, 2); // B
+
+        game.makeMove(0, 0); // W
+
+        boolean allowed = game.makeMove(0, 1); // B
+
+        assertTrue(allowed, "Ruch samobójczy, który bije przeciwnika, jest dozwolony");
+
+        Board board = game.getBoard();
+        assertEquals(Stone.NONE, board.get(0, 0), "Kamień biały powinien zostać zbity");
+    }
+
+
 }
