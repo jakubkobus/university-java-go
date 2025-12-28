@@ -20,6 +20,9 @@ public class Game {
     if(!board.isWithinBounds(x, y) || !board.isEmpty(x, y))
       return false;
 
+    if(isSuicide(x, y, currentPlayer))
+        return false;
+
     board.placeStone(x, y, currentPlayer);
 
     Stone opponent = (currentPlayer == Stone.BLACK) ? Stone.WHITE : Stone.BLACK;
@@ -95,7 +98,31 @@ public class Game {
 
   }
 
-  public Board getBoard() {
+  private boolean isSuicide(int x, int y, Stone player) {
+      if(!board.isEmpty(x, y)) return true;
+
+      board.placeStone(x, y, player);
+
+      Stone opponent = (player == Stone.BLACK) ? Stone.WHITE : Stone.BLACK;
+      boolean capturesOpponent = false;
+
+      for(Board.Point n : board.getNeighbors(x, y)) {
+          if(board.get(n.x(), n.y()) == opponent) {
+              if(countGroupLiberties(n.x(), n.y(), opponent) == 0) {
+                  capturesOpponent = true;
+                  break;
+              }
+          }
+      }
+
+      boolean suicide = countGroupLiberties(x, y, player) == 0 && !capturesOpponent;
+
+      board.placeStone(x, y, Stone.NONE);
+      return suicide;
+  }
+
+
+    public Board getBoard() {
     return board;
   }
 
