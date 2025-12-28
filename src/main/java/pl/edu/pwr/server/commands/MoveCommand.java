@@ -35,7 +35,7 @@ public class MoveCommand implements Command {
       }
 
       if(!ok) {
-        sender.sendMessage("ERR Ruch niedozwolony (zajete lub poza plansza)");
+          sender.sendMessage("ERR Ruch niedozwolony (zajete, samobojstwo lub poza plansza)");
         return;
       }
 
