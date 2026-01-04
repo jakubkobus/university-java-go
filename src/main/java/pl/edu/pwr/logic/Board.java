@@ -17,6 +17,13 @@ public class Board {
     }
   }
 
+  public Board(Board other) {
+    this.size = other.size;
+    this.grid = new Stone[size][size];
+    for(int i = 0; i < size; i++)
+      System.arraycopy(other.grid[i], 0, this.grid[i], 0, size);
+  }
+
   public List<Point> getNeighbors(int x, int y) {
     List<Point> neighbors = new ArrayList<>();
     int[][] directions = {{0, 1}, {0, -1}, {1, 0}, {-1, 0}};
@@ -52,6 +59,18 @@ public class Board {
       sb.append("\n");
     }
     return sb.toString();
+  }
+
+  public boolean isTheSameAs(Board other) {
+    if(other == null)
+      return false;
+
+    for(int i = 0; i < size; i++)
+      for(int j = 0; j < size; j++)
+        if(this.grid[i][j] != other.grid[i][j])
+          return false;
+
+    return true;
   }
 
   public int getSize() {

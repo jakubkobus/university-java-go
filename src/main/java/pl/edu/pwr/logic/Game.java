@@ -7,6 +7,7 @@ import java.util.HashSet;
 
 public class Game {
   private final Board board;
+  private Board previousBoard;
   private Stone currentPlayer = Stone.BLACK;
   
   private int blackPrisoners = 0;
@@ -20,16 +21,41 @@ public class Game {
     if(!board.isWithinBounds(x, y) || !board.isEmpty(x, y))
       return false;
 
-    if(isSuicide(x, y, currentPlayer))
-        return false;
-
-    board.placeStone(x, y, currentPlayer);
+    Board tempBoard = new Board(board);
+    tempBoard.placeStone(x, y, currentPlayer);
 
     Stone opponent = (currentPlayer == Stone.BLACK) ? Stone.WHITE : Stone.BLACK;
+    
+    Board backupBoard = new Board(board);
+    int backupBlack = blackPrisoners;
+    int backupWhite = whitePrisoners;
+
+    board.placeStone(x, y, currentPlayer);
     checkCaptures(x, y, opponent);
 
+    if(countGroupLiberties(x, y, currentPlayer) == 0) {
+      restoreBoard(backupBoard, backupBlack, backupWhite);
+      return false;
+    }
+
+    if(previousBoard != null && board.isTheSameAs(previousBoard)) {
+      restoreBoard(backupBoard, backupBlack, backupWhite);
+      return false;
+    }
+
+    previousBoard = backupBoard; 
+    
     switchPlayer();
     return true;
+  }
+
+  private void restoreBoard(Board backup, int bPris, int wPris) {
+    for(int i = 0; i < board.getSize(); i++) 
+      for(int j = 0; j < board.getSize(); j++) 
+        board.placeStone(i, j, backup.get(i, j));
+
+    this.blackPrisoners = bPris;
+    this.whitePrisoners = wPris;
   }
 
   private void checkCaptures(int x, int y, Stone opponentColor) {
