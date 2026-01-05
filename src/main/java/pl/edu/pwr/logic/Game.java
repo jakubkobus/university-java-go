@@ -144,6 +144,12 @@ public class Game {
     }
   }
 
+  public synchronized void surrender(Stone who) {
+    gameOver = true;
+    Stone winner = (who == Stone.BLACK) ? Stone.WHITE : Stone.BLACK;
+    gameResult = "Poddanie, wygrywa " + (winner == Stone.BLACK ? "CZARNY" : "BIALY");
+  }
+
   public Board getBoard() {
     return board;
   }

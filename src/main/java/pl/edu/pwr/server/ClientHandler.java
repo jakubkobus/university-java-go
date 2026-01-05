@@ -5,6 +5,7 @@ import pl.edu.pwr.logic.Stone;
 import pl.edu.pwr.server.commands.Command;
 import pl.edu.pwr.server.commands.MoveCommand;
 import pl.edu.pwr.server.commands.PassCommand;
+import pl.edu.pwr.server.commands.SurrenderCommand;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -33,6 +34,7 @@ public class ClientHandler implements Runnable {
 
     commands.put("MOVE", new MoveCommand(game));
     commands.put("PASS", new PassCommand(game));
+    commands.put("SURRENDER", new SurrenderCommand(game));
   }
 
   public void setOpponent(ClientHandler opponent) {
@@ -66,7 +68,7 @@ public class ClientHandler implements Runnable {
         if(commands.containsKey(commandName)) {
           commands.get(commandName).execute(parts, this);
         } else {
-          sendMessage("ERR Nieznana komenda. Dostepne: MOVE x y, PASS");
+          sendMessage("ERR Nieznana komenda. Dostepne: MOVE x y, PASS, SURRENDER");
         }
       }
     } catch (IOException e) {
