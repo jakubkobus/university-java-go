@@ -13,6 +13,10 @@ public class Game {
   private int blackPrisoners = 0;
   private int whitePrisoners = 0;
 
+  private int passesInRow = 0;
+  private boolean gameOver = false;
+  private String gameResult = "";
+
   public Game(int size) {
     this.board = BoardFactory.createBoard(size);
   }
@@ -33,16 +37,19 @@ public class Game {
     board.placeStone(x, y, currentPlayer);
     checkCaptures(x, y, opponent);
 
+    // sprawdzanie samobojstwa
     if(countGroupLiberties(x, y, currentPlayer) == 0) {
       restoreBoard(backupBoard, backupBlack, backupWhite);
       return false;
     }
 
+    // sprawdzanie ko
     if(previousBoard != null && board.isTheSameAs(previousBoard)) {
       restoreBoard(backupBoard, backupBlack, backupWhite);
       return false;
     }
 
+    passesInRow = 0;
     previousBoard = backupBoard; 
     
     switchPlayer();
@@ -121,34 +128,23 @@ public class Game {
       } else {
           whitePrisoners += stonesCaptured;
       }
-
   }
 
-  private boolean isSuicide(int x, int y, Stone player) {
-      if(!board.isEmpty(x, y)) return true;
+  public synchronized void pass() {
+    if(gameOver) return;
 
-      board.placeStone(x, y, player);
+    passesInRow++;
 
-      Stone opponent = (player == Stone.BLACK) ? Stone.WHITE : Stone.BLACK;
-      boolean capturesOpponent = false;
-
-      for(Board.Point n : board.getNeighbors(x, y)) {
-          if(board.get(n.x(), n.y()) == opponent) {
-              if(countGroupLiberties(n.x(), n.y(), opponent) == 0) {
-                  capturesOpponent = true;
-                  break;
-              }
-          }
-      }
-
-      boolean suicide = countGroupLiberties(x, y, player) == 0 && !capturesOpponent;
-
-      board.placeStone(x, y, Stone.NONE);
-      return suicide;
+    if(passesInRow >= 2) {
+      gameOver = true;
+      gameResult = "Koniec gry poprzez spasowanie obu graczy.";
+    } else {
+      previousBoard = new Board(board); 
+      switchPlayer();
+    }
   }
 
-
-    public Board getBoard() {
+  public Board getBoard() {
     return board;
   }
 
@@ -162,6 +158,14 @@ public class Game {
 
   public int getWhitePrisoners() {
       return whitePrisoners;
+  }
+
+  public boolean isGameOver() { 
+    return gameOver; 
+  }
+
+  public String getGameResult() { 
+    return gameResult; 
   }
 
   private void switchPlayer() {

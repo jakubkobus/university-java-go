@@ -4,6 +4,7 @@ import pl.edu.pwr.logic.Game;
 import pl.edu.pwr.logic.Stone;
 import pl.edu.pwr.server.commands.Command;
 import pl.edu.pwr.server.commands.MoveCommand;
+import pl.edu.pwr.server.commands.PassCommand;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -31,6 +32,7 @@ public class ClientHandler implements Runnable {
     this.myColor = (playerId == 1) ? Stone.BLACK : Stone.WHITE;
 
     commands.put("MOVE", new MoveCommand(game));
+    commands.put("PASS", new PassCommand(game));
   }
 
   public void setOpponent(ClientHandler opponent) {
@@ -64,7 +66,7 @@ public class ClientHandler implements Runnable {
         if(commands.containsKey(commandName)) {
           commands.get(commandName).execute(parts, this);
         } else {
-          sendMessage("ERR Nieznana komenda. Dostepne: MOVE x y");
+          sendMessage("ERR Nieznana komenda. Dostepne: MOVE x y, PASS");
         }
       }
     } catch (IOException e) {
