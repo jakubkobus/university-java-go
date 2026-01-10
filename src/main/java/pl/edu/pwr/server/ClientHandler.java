@@ -1,11 +1,14 @@
 package pl.edu.pwr.server;
 
 import pl.edu.pwr.logic.Game;
+import pl.edu.pwr.logic.GameState;
 import pl.edu.pwr.logic.Stone;
 import pl.edu.pwr.server.commands.Command;
 import pl.edu.pwr.server.commands.MoveCommand;
 import pl.edu.pwr.server.commands.PassCommand;
 import pl.edu.pwr.server.commands.SurrenderCommand;
+import pl.edu.pwr.server.commands.RemoveCommand;
+import pl.edu.pwr.server.commands.FillCommand;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -35,6 +38,8 @@ public class ClientHandler implements Runnable {
     commands.put("MOVE", new MoveCommand(game));
     commands.put("PASS", new PassCommand(game));
     commands.put("SURRENDER", new SurrenderCommand(game));
+    commands.put("REMOVE", new RemoveCommand(game));
+    commands.put("FILL", new FillCommand(game));
   }
 
   public void setOpponent(ClientHandler opponent) {
@@ -86,12 +91,20 @@ public class ClientHandler implements Runnable {
     out.println("CLS");
     out.println(game.getBoard().toString());
 
-    if(game.getCurrentPlayer() == myColor) {
-      out.println("--- TWOJA TURA (" + (myColor == Stone.BLACK ? "CZARNY" : "BIALY") + ") ---");
-      out.println("Wpisz ruch (np. MOVE 1 1) >");
+    if (game.isGameOver()) {
+        out.println("=== GRA ZAKONCZONA ===");
+        out.println(game.getGameResult());
+    } else if (game.getState() == GameState.CLEANUP) {
+        out.println("=== FAZA USUWANIA MARTWYCH KAMIENI ===");
+        out.println("Wpisz: REMOVE x y aby usunac kamien przeciwnika");
+        out.println("Wpisz: FILL x y aby dodac jencow na teren przeciwnika");
+        out.println("Wpisz: PASS gdy usuniesz juz wszystkie martwe kamienie");
     } else {
-      out.println("--- TURA PRZECIWNIKA ---");
-      out.println("Czekaj...");
+        if(game.getCurrentPlayer() == myColor) {
+            out.println("--- TWOJA TURA (" + (myColor == Stone.BLACK ? "CZARNY" : "BIALY") + ") ---");
+        } else {
+            out.println("--- TURA PRZECIWNIKA ---");
+        }
     }
   }
 
