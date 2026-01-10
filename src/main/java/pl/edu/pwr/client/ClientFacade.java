@@ -11,7 +11,11 @@ public class ClientFacade {
   private PrintWriter out;
   private Thread listenerThread;
 
-  private ConsoleView view = new ConsoleView();
+  private final GameView view;
+
+  public ClientFacade(GameView view) {
+    this.view = view;
+  }
 
   public void connect(String host, int port) throws IOException {
     socket = new Socket(host, port);
@@ -31,7 +35,7 @@ public class ClientFacade {
           view.displayMessage(message);
         }
       } catch (Exception e) {
-        System.out.println("\n[KLIENT] Utracono polaczenie z serwerem");
+        view.displayMessage("[KLIENT] Utracono polaczenie z serwerem");
       }
     });
     listenerThread.start();
@@ -42,6 +46,10 @@ public class ClientFacade {
       out.println(message);
   }
 
+  public void sendMove(int x, int y) {
+    sendMessage("MOVE " + (x + 1) + " " + (y + 1));
+  }
+
   public void disconnect() {
     try {
       if (socket != null && !socket.isClosed()) {
@@ -50,9 +58,5 @@ public class ClientFacade {
     } catch (IOException e) {
       e.printStackTrace();
     }
-  }
-
-  public void sendMove(int x, int y) {
-    sendMessage("MOVE " + x + " " + y);
   }
 }
