@@ -18,17 +18,60 @@ import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Obsługuje połączenie i komunikację z jednym klientem gry w Go.
+ * 
+ * Odpowiada za:
+ * <ul>
+ *   <li>Zarządzanie połączeniem sieciowym z klientem</li>
+ *   <li>Odczytywanie i przetwarzanie komend od klienta</li>
+ *   <li>Wysyłanie stanu gry i wiadomości do klienta</li>
+ *   <li>Egzekwowanie komend na obiekcie gry</li>
+ *   <li>Synchronizacja akcji między dwoma graczami</li>
+ * </ul>
+ * 
+ * Każdy ClientHandler działa w osobnym wątku i obsługuje jednego gracza.
+ * ClientHandlery są sparowane (opponent) do komunikacji między graczami.
+ * 
+ * @author Jakub Kobus, Dawid Leśkiewicz
+ * @version 1.0
+ * @see Server
+ * @see Command
+ */
 public class ClientHandler implements Runnable {
+  
+  /** Socket do komunikacji z klientem */
   private Socket socket;
+  
+  /** BufferedReader do odczytywania komend od klienta */
   private BufferedReader in;
+  
+  /** PrintWriter do wysyłania wiadomości do klienta */
   private PrintWriter out;
+  
+  /** Identyfikator gracza (1 lub 2) */
   private int playerId;
+  
+  /** Referencja do przeciwnika (drugi gracz) */
   private ClientHandler opponent;
+  
+  /** Kolor kamieni przydzielony temu graczowi (BLACK lub WHITE) */
   private Stone myColor;
+  
+  /** Instancja gry, na której gracze grają */
   private Game game;
 
+  /** Mapa dostępnych komend */
   private Map<String, Command> commands = new HashMap<>();
 
+  /**
+   * Konstruktor ClientHandler.
+   * Inicjalizuje obsługę klienta, przydziela kolor kamieni i rejestruje dostępne komendy.
+   * 
+   * @param socket socket do komunikacji z klientem
+   * @param playerId identyfikator gracza (1 = czarny, 2 = biały)
+   * @param game instancja gry, w której będzie grać klient
+   */
   public ClientHandler(Socket socket, int playerId, Game game) {
     this.socket = socket;
     this.playerId = playerId;
@@ -42,18 +85,46 @@ public class ClientHandler implements Runnable {
     commands.put("FILL", new FillCommand(game));
   }
 
+  /**
+   * Ustawia odniesienie do przeciwnika (drugiego gracza).
+   * 
+   * @param opponent ClientHandler drugiego gracza
+   */
   public void setOpponent(ClientHandler opponent) {
     this.opponent = opponent;
   }
 
+  /**
+   * Zwraca referencję do przeciwnika.
+   * 
+   * @return ClientHandler drugiego gracza
+   */
   public ClientHandler getOpponent() {
     return opponent;
   }
 
+  /**
+   * Zwraca kolor kamieni gracza.
+   * 
+   * @return Stone reprezentujący kolor (BLACK lub WHITE)
+   */
   public Stone getMyColor() {
     return myColor;
   }
 
+  /**
+   * Główna pętla wątku obsługującego klienta.
+   * 
+   * Przepływ:
+   * <ol>
+   *   <li>Inicjalizuje strumienie wejścia/wyjścia</li>
+   *   <li>Wysyła początkowy stan planszy i informację o kolorze gracza</li>
+   *   <li>Wciąż czeka na i przetwarza komendy od klienta</li>
+   *   <li>Parsuje komendę i wyłania jej z mapy dostępnych komend</li>
+   *   <li>Wysyła komunikat błędu dla nieznanych komend</li>
+   *   <li>Obsługuje połączenia i błędy I/O</li>
+   * </ol>
+   */
   @Override
   public void run() {
     try {
@@ -87,6 +158,16 @@ public class ClientHandler implements Runnable {
     }
   }
 
+  /**
+   * Wysyła aktualny stan planszy do klienta.
+   * 
+   * Wysyła:
+   * <ul>
+   *   <li>Komendę czyszczenia ekranu (CLS)</li>
+   *   <li>Wizualizację planszy</li>
+   *   <li>Informacje o stanie gry (czyja tura, czy gra skończona, itp.)</li>
+   * </ul>
+   */
   public void sendBoard() {
     out.println("CLS");
     out.println(game.getBoard().toString());
@@ -108,6 +189,11 @@ public class ClientHandler implements Runnable {
     }
   }
 
+  /**
+   * Wysyła wiadomość tekstową do klienta.
+   * 
+   * @param message treść wiadomości do wysłania
+   */
   public void sendMessage(String message) {
     out.println(message);
   }

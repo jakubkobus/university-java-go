@@ -1,6 +1,5 @@
 package pl.edu.pwr.logic;
 
-import pl.edu.pwr.logic.GameState;
 import pl.edu.pwr.logic.scoring.IScoringStrategy;
 import pl.edu.pwr.logic.scoring.ScoringStrategy;
 import pl.edu.pwr.logic.scoring.ScoringService;
@@ -18,7 +17,6 @@ public class Game {
   private int whitePrisoners = 0;
 
   private int passesInRow = 0;
-  private int consecutivePasses = 0;
   private boolean gameOver = false;
   private String gameResult = "";
 

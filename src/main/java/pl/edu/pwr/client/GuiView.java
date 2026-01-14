@@ -17,19 +17,67 @@ import javafx.stage.Stage;
 
 import pl.edu.pwr.logic.Stone;
 
+/**
+ * Implementacja interfejsu GameView dla graficznego interfejsu użytkownika (GUI).
+ * 
+ * Odpowiada za:
+ * <ul>
+ *   <li>Wyświetlanie planszy gry w interfejsie graficznym JavaFX</li>
+ *   <li>Obsługę kliknięć na polach planszy</li>
+ *   <li>Wyświetlanie komunikatów gry i dziennika zdarzeń</li>
+ *   <li>Zarządzanie fazą cleanup (usuwania martwych kamieni)</li>
+ *   <li>Rysowanie kamieni i punktów hoshi na planszy</li>
+ * </ul>
+ * 
+ * Używa wzorca singleton dla instancji oraz zagnieżdżonej klasy AppWindow
+ * do zarządzania oknem aplikacji JavaFX.
+ * 
+ * @author Jakub Kobus, Dawid Leśkiewicz
+ * @version 1.0
+ * @see GameView
+ * @see ClientFacade
+ */
 public class GuiView implements GameView {
 
+  /** Referencja do fasady klienta */
   private static ClientFacade clientRef;
+  
+  /** Singleton instancji GuiView */
   private static GuiView instance;
+  
+  /** Aktualne okno aplikacji */
   private AppWindow currentWindow;
 
+  /**
+   * Rozpoczyna interakcję z graczem poprzez interfejs graficzny JavaFX.
+   * 
+   * Przepływ:
+   * <ol>
+   *   <li>Zapisuje referencję do fasady klienta</li>
+   *   <li>Ustawia singleton instancję</li>
+   *   <li>Uruchamia aplikację JavaFX w nowym wątku</li>
+   * </ol>
+   * 
+   * @param client fasada klienta do komunikacji z serwerem
+   */
   @Override
   public void startInteraction(ClientFacade client) {
+    // Zapisanie referencji do fasady klienta
     clientRef = client;
     instance = this;
+    // Uruchomienie aplikacji JavaFX w oddzielnym wątku
     new Thread(() -> Application.launch(AppWindow.class)).start();
   }
 
+  /**
+   * Wyświetla wiadomość w dzienniku zdarzeń GUI.
+   * 
+   * Wiadomość jest dodawana do dziennika w oknie aplikacji.
+   * Używa Platform.runLater() aby zapewnić bezpieczną komunikację
+   * między wątkami z wątkiem JavaFX.
+   * 
+   * @param message wiadomość do wyświetlenia
+   */
   @Override
   public void displayMessage(String message) {
     if (currentWindow != null) {
@@ -37,6 +85,12 @@ public class GuiView implements GameView {
     }
   }
 
+  /**
+   * Czyści ekran i przygotowuje bufor do odczytu nowego stanu planszy.
+   * 
+   * Resetuje bufor planszy dla wyświetlenia nowego stanu gry wysłanego przez serwer.
+   * Używa Platform.runLater() dla bezpiecznej komunikacji z wątkiem JavaFX.
+   */
   @Override
   public void clearScreen() {
     if (currentWindow != null) {
@@ -44,23 +98,69 @@ public class GuiView implements GameView {
     }
   }
 
+  /**
+   * Zagnieżdżona klasa zarządzająca oknem aplikacji JavaFX.
+   * 
+   * Odpowiada za:
+   * <ul>
+   *   <li>Tworzenie interfejsu użytkownika (UI)</li>
+   *   <li>Zarządzanie planszą gry (19x19)</li>
+   *   <li>Obsługę zdarzeń kliknięcia na pola</li>
+   *   <li>Wyświetlanie kamieni i stanu gry</li>
+   *   <li>Interfejs fazy cleanup (usuwania martwych kamieni)</li>
+   * </ul>
+   */
   public static class AppWindow extends Application {
+    
+    /** Rozmiar planszy (19x19) */
     private static final int BOARD_SIZE = 19;
+    
+    /** Rozmiar jednego pola planszy w pikselach */
     private static final int CELL_SIZE = 40;
+    
+    /** Rozmiar narysowanego kamienia w pikselach */
     private static final double STONE_SIZE = 18.0;
 
+    /** Pole tekstowe dla dziennika komunikatów */
     private TextArea logArea;
+    
+    /** Tablica pól planszy */
     private StackPane[][] cells = new StackPane[BOARD_SIZE][BOARD_SIZE];
+    
+    /** Flaga wskazująca czy aktualnie odczytywany jest stan planszy */
     private boolean isReadingBoard = false;
+    
+    /** Bufor dla linii stanu planszy */
     private StringBuilder boardBuffer = new StringBuilder();
 
+    /** Flaga wskazująca czy jesteśmy w fazie usuwania martwych kamieni */
     private boolean isCleanupPhase = false;
 
+    /** Panel interfejsu dla fazy cleanup */
     private VBox cleanupPanel;
+    
+    /** Grupa przycisków radiowych w fazie cleanup */
     private ToggleGroup cleanupGroup;
+    
+    /** Przycisk do usunięcia martwego kamienia */
     private RadioButton rbRemove;
+    
+    /** Przycisk do umieszczenia jeńca */
     private RadioButton rbFill;
 
+    /**
+     * Metoda początkowa aplikacji JavaFX.
+     * 
+     * Tworzy interfejs użytkownika zawierający:
+     * <ul>
+     *   <li>Planszę gry (GridPane 19x19)</li>
+     *   <li>Przyciski akcji (PASS, SURRENDER)</li>
+     *   <li>Dziennik komunikatów (TextArea)</li>
+     *   <li>Panel cleanup (REMOVE, FILL)</li>
+     * </ul>
+     * 
+     * @param stage główne okno aplikacji
+     */
     @Override
     public void start(Stage stage) {
       if (GuiView.instance != null) {
@@ -146,6 +246,13 @@ public class GuiView implements GameView {
       stage.show();
     }
 
+    /**
+     * Tworzy stylizowany przycisk z określonym tekstem i kolorem.
+     * 
+     * @param text tekst na przycisku
+     * @param colorHex kolor tła w formacie hexadecymalnym (np. "#d35400")
+     * @return skonfigurowany przycisk
+     */
     private Button createStyledButton(String text, String colorHex) {
       Button btn = new Button(text);
       btn.setStyle(
@@ -211,6 +318,15 @@ public class GuiView implements GameView {
       return grid;
     }
 
+    /**
+     * Obsługuje kliknięcie na pole planszy.
+     * 
+     * W normalnej fazie gry wysyła ruch (MOVE).
+     * W fazie cleanup wysyła komendę REMOVE lub FILL w zależności od wybranego przycisku.
+     * 
+     * @param x współrzędna x kliknięcia (0-indeksowana)
+     * @param y współrzędna y kliknięcia (0-indeksowana)
+     */
     private void handleBoardClick(int x, int y) {
       if (!isCleanupPhase) {
         clientRef.sendMove(x, y);
@@ -223,17 +339,40 @@ public class GuiView implements GameView {
       }
     }
 
+    /**
+     * Sprawdza czy pole jest punktem hoshi (punktem o wzmacniającym znaczeniu).
+     * 
+     * Punkty hoshi znajdują się w pozycjach (3,3), (3,9), (3,15), (9,3), itp.
+     * 
+     * @param x współrzędna x pola
+     * @param y współrzędna y pola
+     * @return true jeśli pole jest punktem hoshi, false w przeciwnym razie
+     */
     private boolean isHoshi(int x, int y) {
       boolean xMatch = (x == 3 || x == 9 || x == 15);
       boolean yMatch = (y == 3 || y == 9 || y == 15);
       return xMatch && yMatch;
     }
 
+    /**
+     * Resetuje bufor planszy i przygotowuje się do odczytu nowego stanu.
+     * 
+     * Ustawia flagę isReadingBoard na true oraz czyszcza bufor.
+     */
     public void resetBoardBuffer() {
       isReadingBoard = true;
       boardBuffer.setLength(0);
     }
 
+    /**
+     * Dodaje wiadomość do dziennika zdarzeń i parsuje stan planszy.
+     * 
+     * Jeśli jest to linia należąca do stanu planszy, buforuje ją.
+     * Kiedy wszystkie linie planszy są zbierane, rysuje planszę.
+     * Pozostałe wiadomości są bezpośrednio dodawane do dziennika.
+     * 
+     * @param msg wiadomość do dodania
+     */
     public void appendLog(String msg) {
       checkGameState(msg);
 
@@ -252,6 +391,14 @@ public class GuiView implements GameView {
       }
     }
 
+    /**
+     * Sprawdza wiadomość na obecność stanu gry i zmienia interfejs odpowiednio.
+     * 
+     * Jeśli wiadomość zawiera oznaczenie fazy cleanup, pokazuje panel cleanup.
+     * Jeśli zawiera oznaczenie konca gry, ukrywa panel cleanup.
+     * 
+     * @param msg wiadomość do sprawdzenia
+     */
     private void checkGameState(String msg) {
       if (msg.contains("=== FAZA USUWANIA MARTWYCH KAMIENI ===")) {
         isCleanupPhase = true;
@@ -262,6 +409,13 @@ public class GuiView implements GameView {
       }
     }
 
+    /**
+     * Parsuje i rysuje stan planszy na podstawie ciągu tekstowego.
+     * 
+     * Parsuje linię po linii i szuka reprezentacji kamieni (B), (W) i pustych pól (+).
+     * 
+     * @param fullBoardStr pełny tekst stanu planszy
+     */
     private void parseAndDrawBoard(String fullBoardStr) {
       String[] lines = fullBoardStr.split("\n");
       int y = 0;
@@ -275,6 +429,14 @@ public class GuiView implements GameView {
       }
     }
 
+    /**
+     * Rysuje jeden wiersz planszy na podstawie linii tekstowej.
+     * 
+     * Parsuje znaki reprezentujące kamienie i puste pola, tworząc wizualną reprezentację.
+     * 
+     * @param y współrzędna y wiersza
+     * @param line linia tekstowa do parsowania
+     */
     private void drawRow(int y, String line) {
       int x = 0;
 
@@ -295,6 +457,16 @@ public class GuiView implements GameView {
       }
     }
 
+    /**
+     * Ustawia kamień o określonym kolorze na polu planszy.
+     * 
+     * Usuwa poprzedni kamień jeśli istniał, a następnie dodaje nowy kamień
+     * ze stylem i cieniem zależnie od koloru.
+     * 
+     * @param x współrzędna x pola
+     * @param y współrzędna y pola
+     * @param color kolor kamienia (BLACK, WHITE lub NONE dla pustego pola)
+     */
     private void setStone(int x, int y, Stone color) {
       StackPane cell = cells[x][y];
 
