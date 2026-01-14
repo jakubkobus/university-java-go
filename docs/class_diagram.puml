@@ -1,115 +1,333 @@
 @startuml class_diagram
-title Gra w GO (projekt - technologia programowania)
+title Gra w GO - Diagram Klas (Projekt - Technologia Programowania)
 skinparam classAttributeIconSize 0
+skinparam linetype ortho
 
 package "pl.edu.pwr.logic" {
+  
   enum Stone {
     BLACK
     WHITE
     NONE
   }
 
+  class Point <<record>> {
+    - x : int
+    - y : int
+    - - -
+    + Point(x: int, y: int)
+    + x() : int
+    + y() : int
+  }
+
   class Board {
     - size : int
     - grid : Stone[][]
-    + Board(size : int)
+    - - -
+    + Board(size: int)
+    + Board(other: Board)
     + getNeighbors(x: int, y: int) : List<Point>
-    + placeStone(x: int, y: int, s: Stone) : void
+    + placeStone(x: int, y: int, stone: Stone) : void
+    + get(x: int, y: int) : Stone
+    + isEmpty(x: int, y: int) : boolean
+    + isWithinBounds(x: int, y: int) : boolean
+    + getSize() : int
+    + isTheSameAs(other: Board) : boolean
     + toString() : String
   }
 
   class BoardFactory <<Factory Method>> {
+    - - -
     + {static} createBoard(size: int) : Board
+  }
+
+  enum GameState {
+    IN_PROGRESS
+    CLEANUP
+    FINISHED
+  }
+
+  class GameResult <<record>> {
+    - blackScore : int
+    - whiteScore : int
+    - - -
+    + GameResult(blackScore: int, whiteScore: int)
+    + blackScore() : int
+    + whiteScore() : int
+    + winner() : String
   }
 
   class Game {
     - board : Board
+    - previousBoard : Board
     - currentPlayer : Stone
     - blackPrisoners : int
     - whitePrisoners : int
+    - passesInRow : int
+    - consecutivePasses : int
+    - gameOver : boolean
+    - gameResult : String
+    - state : GameState
+    - scoringService : ScoringService
+    - scoringStrategy : IScoringStrategy
+    - - -
     + Game(size: int)
-    + makeMove(x: int, y: int) : boolean
+    + {synchronized} makeMove(x: int, y: int) : boolean
+    + {synchronized} pass() : void
+    + {synchronized} surrender(who: Stone) : void
+    + {synchronized} finishGame() : void
+    + {synchronized} removeDeadStone(x: int, y: int, requester: Stone) : String
+    + {synchronized} placePrisonerAsDead(x: int, y: int, requester: Stone) : Boolean
     + getBoard() : Board
     + getCurrentPlayer() : Stone
     + getBlackPrisoners() : int
     + getWhitePrisoners() : int
-    - checkCaptures(...)
-    - countSingleStoneLiberties(...)
-    - captureSingleStone(...)
+    + isGameOver() : boolean
+    + getGameResult() : String
+    + getState() : GameState
+    - checkCaptures(x: int, y: int, opponentColor: Stone) : void
+    - countGroupLiberties(startX: int, startY: int, color: Stone) : int
+    - removeGroup(startX: int, startY: int, color: Stone) : void
     - switchPlayer() : void
+    - restoreBoard(backup: Board, bPris: int, wPris: int) : void
   }
 
+  Board *-- Stone : zawiera >
+  Board --> "*" Point : zwraca >
   Game "1" *-- "1" Board : zawiera >
-  Game ..> BoardFactory : używa >
-  Board *-- Stone
+  Game "1" o-- "1" GameState : ma >
+  Game ..> BoardFactory : tworzy >
+  Game o-- IScoringStrategy : używa >
+}
+
+package "pl.edu.pwr.logic.scoring" {
+
+  class TerritoryScanResult <<record>> {
+    - areaSize : int
+    - touchesBlack : boolean
+    - touchesWhite : boolean
+    - - -
+    + TerritoryScanResult(areaSize: int, touchesBlack: boolean, touchesWhite: boolean)
+    + areaSize() : int
+    + touchesBlack() : boolean
+    + touchesWhite() : boolean
+  }
+
+  class TerritoryResult <<record>> {
+    - blackTerritory : int
+    - whiteTerritory : int
+    - - -
+    + TerritoryResult(blackTerritory: int, whiteTerritory: int)
+    + blackTerritory() : int
+    + whiteTerritory() : int
+  }
+
+  interface IScoringStrategy {
+    {abstract} + score(board: Board, blackPrisoners: int, whitePrisoners: int) : GameResult
+  }
+
+  class ScoringService {
+    - - -
+    + calculateTerritory(board: Board) : TerritoryResult
+    + isPrisonerRemovable(board: Board, x: int, y: int, playerColor: Stone) : boolean
+    - scanEmptyArea(board: Board, x: int, y: int, visited: boolean[][]) : TerritoryScanResult
+  }
+
+  class ScoringStrategy implements IScoringStrategy {
+    - scoringService : ScoringService
+    - - -
+    + ScoringStrategy()
+    + score(board: Board, blackPrisoners: int, whitePrisoners: int) : GameResult
+  }
+
+  IScoringStrategy <|.. ScoringStrategy : implementuje
+  ScoringStrategy o-- ScoringService : używa >
+  ScoringService --> TerritoryScanResult : tworzy >
+  ScoringStrategy --> TerritoryResult : zwraca >
+  ScoringService --> TerritoryResult : zwraca >
 }
 
 package "pl.edu.pwr.server" {
+
   class ServerApp {
-    + {static} main(args: String[])
+    - - -
+    + {static} main(args: String[]) : void
   }
 
   class Server <<Singleton>> {
     - {static} instance : Server
     - isRunning : boolean
+    - - -
     - Server()
     + {static} getInstance() : Server
-    + start(port: int)
+    + start(port: int) : void
   }
 
   class ClientHandler implements Runnable {
     - socket : Socket
+    - in : BufferedReader
+    - out : PrintWriter
     - playerId : int
+    - opponent : ClientHandler
     - myColor : Stone
+    - game : Game
     - commands : Map<String, Command>
-    + run()
-    + setOpponent(opponent: ClientHandler)
-    + sendBoard()
-    + sendMessage(msg: String)
+    - - -
+    + ClientHandler(socket: Socket, playerId: int, game: Game)
+    + run() : void
+    + setOpponent(opponent: ClientHandler) : void
+    + getOpponent() : ClientHandler
+    + getMyColor() : Stone
+    + sendBoard() : void
+    + sendMessage(message: String) : void
   }
 
   package "commands" {
-    interface Command <<Command>> {
-      + execute(args: String[], sender: ClientHandler)
+    interface Command {
+      {abstract} + execute(args: String[], sender: ClientHandler) : void
     }
 
     class MoveCommand implements Command {
       - game : Game
+      - - -
       + MoveCommand(game: Game)
-      + execute(...)
+      + execute(args: String[], sender: ClientHandler) : void
     }
+
+    class PassCommand implements Command {
+      - game : Game
+      - - -
+      + PassCommand(game: Game)
+      + execute(args: String[], sender: ClientHandler) : void
+    }
+
+    class SurrenderCommand implements Command {
+      - game : Game
+      - - -
+      + SurrenderCommand(game: Game)
+      + execute(args: String[], sender: ClientHandler) : void
+    }
+
+    class RemoveCommand implements Command {
+      - game : Game
+      - - -
+      + RemoveCommand(game: Game)
+      + execute(args: String[], sender: ClientHandler) : void
+    }
+
+    class FillCommand implements Command {
+      - game : Game
+      - - -
+      + FillCommand(game: Game)
+      + execute(args: String[], sender: ClientHandler) : void
+    }
+
+    Command <|.. MoveCommand : implementuje
+    Command <|.. PassCommand : implementuje
+    Command <|.. SurrenderCommand : implementuje
+    Command <|.. RemoveCommand : implementuje
+    Command <|.. FillCommand : implementuje
+
+    MoveCommand --> Game : modyfikuje >
+    PassCommand --> Game : modyfikuje >
+    SurrenderCommand --> Game : modyfikuje >
+    RemoveCommand --> Game : modyfikuje >
+    FillCommand --> Game : modyfikuje >
   }
 
-  ServerApp ..> Server : używa >
-  Server "1" o-- "*" ClientHandler : tworzy >
-  ClientHandler o-- Command : wykonuje >
-  ClientHandler --> Game : odnosi się do >
-  MoveCommand --> Game : modyfikuje >
+  ServerApp ..> Server : uruchamia >
+  Server "1" --> "*" ClientHandler : tworzy i obsługuje >
+  ClientHandler "*" --> "*" ClientHandler : <opponent> >
+  ClientHandler "1" --> "1" Game : gra >
+  ClientHandler o-- "5" Command : posiada >
 }
 
 package "pl.edu.pwr.client" {
+
   class ClientApp {
-    + {static} main(args: String[])
+    - - -
+    + {static} main(args: String[]) : void
+  }
+
+  interface GameView {
+    {abstract} + displayMessage(message: String) : void
+    {abstract} + clearScreen() : void
+    {abstract} + startInteraction(clientFacade: ClientFacade) : void
+  }
+
+  class ConsoleView implements GameView {
+    - - -
+    + displayMessage(message: String) : void
+    + clearScreen() : void
+    + displayPrompt() : void
+    + startInteraction(client: ClientFacade) : void
+  }
+
+  class AppWindow {
+    - BOARD_SIZE : int
+    - CELL_SIZE : int
+    - STONE_SIZE : double
+    - logArea : TextArea
+    - cells : StackPane[][]
+    - isReadingBoard : boolean
+    - boardBuffer : StringBuilder
+    - isCleanupPhase : boolean
+    - cleanupPanel : VBox
+    - cleanupGroup : ToggleGroup
+    - rbRemove : RadioButton
+    - rbFill : RadioButton
+    - - -
+    + start(stage: Stage) : void
+    - createBoard() : GridPane
+    - handleBoardClick(x: int, y: int) : void
+    - createStyledButton(text: String, colorHex: String) : Button
+    - isHoshi(x: int, y: int) : boolean
+    - resetBoardBuffer() : void
+    - appendLog(msg: String) : void
+    - checkGameState(msg: String) : void
+    - parseAndDrawBoard(fullBoardStr: String) : void
+    - drawRow(y: int, line: String) : void
+    - setStone(x: int, y: int, color: Stone) : void
+  }
+
+  class GuiView implements GameView {
+    - clientRef : ClientFacade
+    - instance : GuiView
+    - currentWindow : AppWindow
+    - - -
+    + startInteraction(client: ClientFacade) : void
+    + displayMessage(message: String) : void
+    + clearScreen() : void
   }
 
   class ClientFacade <<Facade>> {
     - socket : Socket
     - in : Scanner
     - out : PrintWriter
-    - view : ConsoleView
-    + connect(host: String, port: int)
-    + sendMove(x: int, y: int)
-    + sendMessage(msg: String)
+    - listenerThread : Thread
+    - view : GameView
+    - - -
+    + ClientFacade(view: GameView)
+    + connect(host: String, port: int) : void
+    + sendMessage(message: String) : void
+    + sendMove(x: int, y: int) : void
+    + disconnect() : void
   }
 
-  class ConsoleView {
-    + displayMessage(msg: String)
-    + clearScreen()
-    + displayPrompt()
-  }
-
-  ClientApp ..> ClientFacade : używa >
-  ClientFacade *-- ConsoleView : używa >
+  ClientApp ..> ClientFacade : tworzy >
+  ClientApp ..> GameView : inicjalizuje >
+  ClientFacade "1" --> "1" GameView : wyświetla przez >
+  GameView <|.. ConsoleView : implementuje
+  GameView <|.. GuiView : implementuje
+  GuiView "1" --> "1" AppWindow : zawiera >
 }
+
+Game <.. ScoringStrategy : ocenia grę >
+Game <.. ClientHandler : uruchamia >
+GameResult <.. ScoringStrategy : zwraca >
+TerritoryResult <.. ScoringService : zwraca >
+ScoringService <.. ScoringStrategy : używa >
+ClientFacade <.. ClientApp : inicjalizuje >
+ClientHandler <.. Server : tworzy >
 
 @enduml
