@@ -56,13 +56,13 @@ class GameTest {
     void suicideMoveIsForbidden() {
         Game game = new Game(19);
 
-        game.makeMove(1, 0); // B
-        game.makeMove(10, 10); // W dummy
-        game.makeMove(0, 1); // B
-        game.makeMove(11, 11); // W dummy
-        game.makeMove(2, 1); // B
-        game.makeMove(12, 12); // W dummy
-        game.makeMove(1, 2); // B
+        game.makeMove(1, 0);
+        game.makeMove(10, 10);
+        game.makeMove(0, 1);
+        game.makeMove(11, 11);
+        game.makeMove(2, 1);
+        game.makeMove(12, 12);
+        game.makeMove(1, 2);
 
         boolean allowed = game.makeMove(1, 1);
 
@@ -72,17 +72,17 @@ class GameTest {
     void suicideThatCapturesOpponentIsAllowed() {
         Game game = new Game(19);
 
-        game.makeMove(1, 0); // B
-        game.makeMove(18, 18); // W dummy
-        game.makeMove(1, 1); // B
-        game.makeMove(10, 10); // W dummy
-        game.makeMove(1, 2); // B
-        game.makeMove(12, 12); // W dummy
-        game.makeMove(0, 2); // B
+        game.makeMove(1, 0);
+        game.makeMove(18, 18);
+        game.makeMove(1, 1);
+        game.makeMove(10, 10);
+        game.makeMove(1, 2);
+        game.makeMove(12, 12);
+        game.makeMove(0, 2);
 
-        game.makeMove(0, 0); // W
+        game.makeMove(0, 0);
 
-        boolean allowed = game.makeMove(0, 1); // B
+        boolean allowed = game.makeMove(0, 1);
 
         assertTrue(allowed, "Ruch samobójczy, który bije przeciwnika, jest dozwolony");
 
