@@ -4,7 +4,6 @@ import pl.edu.pwr.logic.*;
 import java.util.*;
 
 public class ScoringService {
-
     public TerritoryResult calculateTerritory(Board board) {
         int size = board.getSize();
         boolean[][] visited = new boolean[size][size];
@@ -60,7 +59,6 @@ public class ScoringService {
 
     public boolean isPrisonerRemovable(Board board, int x, int y, Stone playerColor) {
         Stone clickedStone = board.get(x, y);
-        // Jeśli kliknąłeś kamień i nie jest on Twojego koloru -> usuwamy
         return (clickedStone != Stone.NONE && clickedStone != playerColor);
     }
 

@@ -18,7 +18,7 @@ public class FillCommand implements Command {
             int x = Integer.parseInt(args[1]) - 1;
             int y = Integer.parseInt(args[2]) - 1;
 
-            if (game.placePrisonerAsDead(x, y)) {
+            if (game.placePrisonerAsDead(x, y, sender.getMyColor())) {
                 sender.sendBoard();
                 sender.getOpponent().sendBoard();
                 sender.sendMessage("INFO: Postawiono jenca na terytorium przeciwnika.");

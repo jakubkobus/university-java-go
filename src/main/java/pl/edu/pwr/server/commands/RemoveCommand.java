@@ -30,7 +30,7 @@ public class RemoveCommand implements Command {
 
             String success;
             synchronized (game) {
-                success = game.removeDeadStone(x, y);
+                success = game.removeDeadStone(x, y, sender.getMyColor());
             }
 
             if (success.equals("OK")) {

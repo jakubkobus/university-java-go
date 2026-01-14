@@ -53,8 +53,8 @@ public class GameCleanupTest {
         // kto wykonuje akcję w Twoim ClientHandlerze.
         // Tutaj symulujemy akcje poprzez metodę removeDeadStone.
 
-        String res1 = game.removeDeadStone(0, 0); // usuwa 1 1
-        String res2 = game.removeDeadStone(1, 0); // usuwa 2 1
+        String res1 = game.removeDeadStone(0, 0, Stone.BLACK); // usuwa 1 1
+        String res2 = game.removeDeadStone(1, 0, Stone.BLACK); // usuwa 2 1
         assertEquals("OK", res1);
         assertEquals("OK", res2);
         assertEquals(2, game.getBlackPrisoners(), "Czarny powinien mieć 2 jeńców");
@@ -63,14 +63,14 @@ public class GameCleanupTest {
         // Zmiana tury na Białego, aby mógł usunąć czarny kamień (jeśli Twoja logika tego wymaga)
         game.switchPlayer();
 
-        String res3 = game.removeDeadStone(18, 18); // usuwa 19 19
+        String res3 = game.removeDeadStone(18, 18, Stone.WHITE); // usuwa 19 19
         assertEquals("OK", res3);
         assertEquals(1, game.getWhitePrisoners(), "Biały powinien mieć 1 jeńca");
 
         // 4. Wstawianie jeńców (FILL)
         // Czarny wstawia białego jeńca na puste pole w terytorium białego
         game.switchPlayer(); // Tura czarnego
-        Boolean fillRes = game.placePrisonerAsDead(18, 17); // Stawia na 19 18
+        Boolean fillRes = game.placePrisonerAsDead(18, 17, Stone.BLACK); // Stawia na 19 18
         assertEquals(true, fillRes);
         assertEquals(1, game.getBlackPrisoners(), "Czarny zużył jednego jeńca, został 1");
         assertEquals(Stone.WHITE, game.getBoard().get(18, 17), "Na 19 18 powinien teraz stać biały kamień");
