@@ -11,6 +11,28 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.*;
 
+/**
+ * Testy dla komend serwera w grze Go.
+ * 
+ * Testuje wykonywanie komend przesyłanych przez graczy:
+ * <ul>
+ *   <li>MOVE - umieszczenie kamienia na planszy</li>
+ *   <li>PASS - pominięcie tury</li>
+ *   <li>REMOVE - usunięcie martwego kamienia (faza cleanup)</li>
+ *   <li>FILL - umieszczenie jeńca na terenie (faza cleanup)</li>
+ *   <li>SURRENDER - poddanie się gracza</li>
+ * </ul>
+ * 
+ * Testuje również walidację komend i komunikację między graczami.
+ * Używa mocking framework (Mockito) do symulacji ClientHandler i Game.
+ * 
+ * @author Jakub Kobus, Dawid Leśkiewicz
+ * @version 1.0
+ * @see Command
+ * @see MoveCommand
+ * @see RemoveCommand
+ * @see SurrenderCommand
+ */
 class ServerCommandsTest {
 
   private Game game;
@@ -28,6 +50,16 @@ class ServerCommandsTest {
     when(opponent.getMyColor()).thenReturn(Stone.WHITE);
   }
 
+  /**
+   * Test prawidłowego wykonania komendy MOVE.
+   * 
+   * Sprawdza czy:
+   * <ol>
+   *   <li>Komenda MOVE wywoła metodę makeMove na grze</li>
+   *   <li>Plansza zostanie wysłana obu graczom</li>
+   *   <li>Obaj gracze otrzymają komunikat INFO</li>
+   * </ol>
+   */
   @Test
   void testMoveCommandValid() {
     // Given
@@ -44,6 +76,12 @@ class ServerCommandsTest {
     verify(opponent).sendMessage(contains("INFO"));
   }
 
+  /**
+   * Test komendy MOVE gdy nie jest tura gracza.
+   * 
+   * Sprawdza czy system odrzuci ruch gracza, gdy nie jest jego tura,
+   * i czy makeMove nie zostanie wezwany więcej niż raz.
+   */
   @Test
   void testMoveCommandWrongTurn() {
     MoveCommand cmd = new MoveCommand(game);
@@ -57,6 +95,12 @@ class ServerCommandsTest {
     verify(game, times(1)).makeMove(anyInt(), anyInt());
   }
 
+  /**
+   * Test komendy REMOVE (usunięcia martwego kamienia).
+   * 
+   * Sprawdza czy system odrzuci komendę REMOVE
+   * gdy gra nie jest w stanie CLEANUP.
+   */
   @Test
   void testRemoveCommandOnlyInCleanup() {
     RemoveCommand cmd = new RemoveCommand(game);
@@ -67,6 +111,15 @@ class ServerCommandsTest {
     verify(sender).sendMessage(contains("ERR"));
   }
 
+  /**
+   * Test komendy SURRENDER (poddania się gracza).
+   * 
+   * Sprawdza czy:
+   * <ol>
+   *   <li>Komenda SURRENDER kończy grę (isGameOver = true)</li>
+   *   <li>Obaj gracze otrzymają komunikat GAME_OVER</li>
+   * </ol>
+   */
   @Test
   void testSurrenderCommand() {
     SurrenderCommand cmd = new SurrenderCommand(game);

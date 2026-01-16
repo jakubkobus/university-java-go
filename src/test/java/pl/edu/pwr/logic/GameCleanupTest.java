@@ -4,6 +4,23 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Testy dla fazy cleanup (sprzątania) w grze Go.
+ * 
+ * Testuje funkcjonalność fazy końcowej gry:
+ * <ul>
+ *   <li>Przejście z fazy IN_PROGRESS do CLEANUP po dwóch pasach</li>
+ *   <li>Przejście z fazy CLEANUP do FINISHED po dwóch pasach w cleanup</li>
+ *   <li>Usuwanie martwych kamieni (removeDeadStone)</li>
+ *   <li>Umieszczanie jeńców na terenie przeciwnika (placePrisonerAsDead)</li>
+ *   <li>Liczenie jeńców i aktualizacja stanu planszy</li>
+ * </ul>
+ * 
+ * @author Jakub Kobus, Dawid Leśkiewicz
+ * @version 1.0
+ * @see Game
+ * @see GameState
+ */
 public class GameCleanupTest {
     private Game game;
 
@@ -12,6 +29,20 @@ public class GameCleanupTest {
         game = new Game(19);
     }
 
+    /**
+     * Test pełnego procesu cleanup i umieszczania jeńców.
+     * 
+     * Przepływ:
+     * <ol>
+     *   <li>Ustawia pozycję z martwymi kamieniami na planszy</li>
+     *   <li>Sprawdza że gra jest w stanie IN_PROGRESS</li>
+     *   <li>Gracze spasują 2 razy, co przechodzi grę do stanu CLEANUP</li>
+     *   <li>Gracze usuwają martwe kamienie (removeDeadStone)</li>
+     *   <li>Gracze umieszczają jeńców na terenie przeciwnika (placePrisonerAsDead)</li>
+     *   <li>Gracze spasują 2 razy w CLEANUP, co kończy grę (FINISHED)</li>
+     *   <li>Sprawdza wynik końcowy gry</li>
+     * </ol>
+     */
     @Test
     public void testFullCleanupAndFillProcess() {
         forceStone(3, 0, Stone.BLACK);

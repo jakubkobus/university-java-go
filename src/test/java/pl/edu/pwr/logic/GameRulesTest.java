@@ -4,6 +4,25 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Testy dla reguł gry w Go.
+ * 
+ * Testuje zasady gry:
+ * <ul>
+ *   <li>Zmiana tur pomiędzy graczami</li>
+ *   <li>Niedozwolone umieszczenie na zajętych polach</li>
+ *   <li>Niedozwolone ruchy poza granicami planszy</li>
+ *   <li>Zbijanie (capture) pojedynczych kamieni</li>
+ *   <li>Zbijanie grup kamieni</li>
+ *   <li>Zakaz ruchów samobójczych (suicide moves)</li>
+ *   <li>Pozwolenie na ruchy samobójcze zbijające kamienie</li>
+ *   <li>Ko rule (niedozwolone natychmiastowe powtórzenie pozycji)</li>
+ * </ul>
+ * 
+ * @author Jakub Kobus, Dawid Leśkiewicz
+ * @version 1.0
+ * @see Game
+ */
 class GameRulesTest {
   private Game game;
 
@@ -12,6 +31,12 @@ class GameRulesTest {
     game = new Game(19);
   }
 
+  /**
+   * Test alternacyjnej zmiany tur pomiędzy graczami.
+   * 
+   * Sprawdza czy gracze zmienią się na siebie po każdym ruchu,
+   * zaczynając od czarnych.
+   */
   @Test
   void testBasicAlternatingTurns() {
     assertEquals(Stone.BLACK, game.getCurrentPlayer());
@@ -23,6 +48,12 @@ class GameRulesTest {
     assertEquals(Stone.BLACK, game.getCurrentPlayer());
   }
 
+  /**
+   * Test zakazania umieszczenia kamienia na zajętym polu.
+   * 
+   * Sprawdza czy system nie pozwoli na postawienie drugiego kamienia
+   * na tym samym polu, i czy tura zmienia się prawidłowo.
+   */
   @Test
   void testCannotPlayOnOccupiedIntersection() {
     game.makeMove(5, 5);
@@ -31,6 +62,12 @@ class GameRulesTest {
     assertEquals(Stone.WHITE, game.getCurrentPlayer());
   }
 
+  /**
+   * Test zakazania umieszczenia kamienia poza granicami planszy.
+   * 
+   * Sprawdza czy system odrzuci ruchy z ujemnymi współrzędnymi
+   * lub współrzędnymi większymi od wielkości planszy.
+   */
   @Test
   void testCannotPlayOutOfBounds() {
     assertFalse(game.makeMove(-1, 0));
@@ -38,6 +75,12 @@ class GameRulesTest {
     assertFalse(game.makeMove(19, 0));
   }
 
+  /**
+   * Test zbijania samotnego kamienia w rogu planszy.
+   * 
+   * Sprawdza czy system prawidłowo zbija samotny kamień
+   * i dodaje go do licznika jeńców.
+   */
   @Test
   void testCaptureSingleStoneInCorner() {
     game.makeMove(0, 0);
@@ -49,6 +92,12 @@ class GameRulesTest {
     assertEquals(1, game.getWhitePrisoners(), "Biały powinien mieć 1 jeńca");
   }
 
+  /**
+   * Test zbijania grupy kamieni połączonych ze sobą.
+   * 
+   * Sprawdza czy system zbija całą grupę kamieni
+   * gdy ostatnia liberty grupy zostaje usunięta.
+   */
   @Test
   void testCaptureGroupOfStones() {
     game.makeMove(0, 0);
@@ -63,6 +112,12 @@ class GameRulesTest {
     assertEquals(2, game.getWhitePrisoners());
   }
 
+  /**
+   * Test zakazania ruchu samobójczego.
+   * 
+   * Sprawdza czy system zabrania umieszczenia kamienia na polu,
+   * które nie posiada liberties i nie zbija żadnych kamieni przeciwnika.
+   */
   @Test
   void testSuicideIsForbidden() {
     game = new Game(9);
@@ -82,6 +137,13 @@ class GameRulesTest {
     assertFalse(suicideGame.makeMove(0, 0), "Ruch samobójczy powinien być odrzucony");
   }
 
+  /**
+   * Test pozwalający ruch samobójczy, który zbija kamienie.
+   * 
+   * Sprawdza czy system pozwala na ruch samobójczy
+   * jeśli jednocześnie zbija kamienie przeciwnika,
+   * co daje grupie liberties.
+   */
   @Test
   void testSuicideThatCapturesIsAllowed() {
     Game g = new Game(9);
@@ -96,6 +158,13 @@ class GameRulesTest {
     g.makeMove(0, 0);
   }
 
+  /**
+   * Test Ko rule (niedozwolone natychmiastowe powtórzenie pozycji).
+   * 
+   * Sprawdza czy system zabrania natychmiastowego odbicia (re-capture),
+   * które by przywróciło poprzednią pozycję planszy.
+   * Ko rule zapobiega nieskończonym pętlom zbijania się nawzajem.
+   */
   @Test
   void testKoRule() {
     game.makeMove(2, 1);
