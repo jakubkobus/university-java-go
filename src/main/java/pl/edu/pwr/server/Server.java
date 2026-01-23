@@ -1,12 +1,15 @@
 package pl.edu.pwr.server;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import pl.edu.pwr.config.ServerProperties;
 import pl.edu.pwr.logic.Game;
+import pl.edu.pwr.database.service.GameService;
+
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import pl.edu.pwr.logic.Game;
-import pl.edu.pwr.database.service.GameService;
 
 /**
  * Serwer gry w Go obsługujący połączenia graczy.
@@ -20,61 +23,45 @@ import pl.edu.pwr.database.service.GameService;
  *   <li>Zarządzanie cyklem życia serwera</li>
  * </ul>
  * 
- * Implementuje wzorzec Singleton, zapewniając tylko jedną instancję serwera.
- * Serwer przyjmuje dwóch graczy, tworzy grę o rozmiarze 19x19 i uruchamia ich w osobnych wątkach.
+ * Komponent zarządzany przez Springa, który przyjmuje dwóch graczy,
+ * tworzy grę o rozmiarze 19x19 i uruchamia ich w osobnych wątkach.
  * 
  * @author Jakub Kobus, Dawid Leśkiewicz
  * @version 1.0
  * @see ClientHandler
  * @see Game
  */
+@Component
 public class Server {
   
-  /** Singleton instancja serwera */
-  private static Server instance;
-  
   /** Flaga określająca, czy serwer powinien być uruchomiony */
-  private volatile boolean isRunning = true;
+  private volatile boolean isRunning;
 
   /** Serwis do zarządzania grami w bazie danych */
-  private GameService gameService;
+  private final GameService gameService;
+  
+  /** Konfiguracja serwera */
+  private final ServerProperties serverProperties;
 
   /**
-   * Konstruktor prywatny dla wzorca Singleton.
-   */
-  private Server() {
-  }
-
-  /**
-   * Zwraca singleton instancję serwera.
-   * Implementuje thread-safe lazy initialization.
+   * Konstruktor z wstrzykiwaniem zależności.
    * 
-   * @return singleton instancja serwera
+   * @param gameService serwis do zarządzania grami w bazie danych
+   * @param serverProperties konfiguracja serwera
    */
-  public static Server getInstance() {
-    if (instance == null)
-      synchronized (Server.class) {
-        if (instance == null)
-          instance = new Server();
-      }
-    return instance;
-  }
-
-  /**
-   * Ustawia serwis do zarządzania grami w bazie danych.
-   * 
-   * @param gameService instancja GameService
-   */
-  public void setGameService(GameService gameService) {
+  @Autowired
+  public Server(GameService gameService, ServerProperties serverProperties) {
     this.gameService = gameService;
+    this.serverProperties = serverProperties;
+    this.isRunning = serverProperties.isRunning();
   }
 
   /**
-   * Uruchamia serwer na podanym porcie.
+   * Uruchamia serwer na skonfigurowanym porcie.
    * 
    * Przepływ:
    * <ol>
-   *   <li>Tworzy ServerSocket na podanym porcie</li>
+   *   <li>Tworzy ServerSocket na skonfigurowanym porcie</li>
    *   <li>Wciąż nasłuchuje przychodzących połączeń graczy</li>
    *   <li>Akceptuje pierwszego gracza (CZARNY) i oczekuje na drugiego</li>
    *   <li>Akceptuje drugiego gracza (BIAŁY) i zaczyna grę</li>
@@ -85,11 +72,11 @@ public class Server {
    * </ol>
    * 
    * Błędy I/O są wypisywane na standardowe wyjście błędu.
-   * 
-   * @param port numer portu, na którym serwer będzie nasłuchiwać (np. 8080)
    */
-  public void start(int port) {
+  public void start() {
+    int port = serverProperties.getPort();
     System.out.println("Serwer uruchamia sie na porcie " + port);
+    
     try(ServerSocket listener = new ServerSocket(port)) {
 
       while(isRunning) {
@@ -127,5 +114,21 @@ public class Server {
     } catch(IOException e) {
       e.printStackTrace();
     }
+  }
+
+  /**
+   * Zatrzymuje serwer.
+   */
+  public void stop() {
+    this.isRunning = false;
+  }
+  
+  /**
+   * Sprawdza czy serwer jest uruchomiony.
+   * 
+   * @return true jeśli serwer jest uruchomiony
+   */
+  public boolean isRunning() {
+    return isRunning;
   }
 }
