@@ -42,6 +42,8 @@ public class Game {
   private boolean gameOver = false;
   private String gameResult = "";
 
+  private int moveCount = 0;
+
   private GameState state = GameState.IN_PROGRESS;
   private final IScoringStrategy scoringStrategy = new ScoringStrategy();
   private final ScoringService scoringService = new ScoringService();
@@ -105,6 +107,7 @@ public class Game {
       return false;
     }
 
+    moveCount++;
     passesInRow = 0;
     previousBoard = backupBoard;
 
@@ -232,6 +235,7 @@ public class Game {
   public synchronized void pass() {
     if (gameOver)
       return;
+    moveCount++;
     passesInRow++;
 
     if (passesInRow >= 2) {
@@ -419,5 +423,14 @@ public class Game {
    */
   public void switchPlayer() {
     currentPlayer = (currentPlayer == Stone.BLACK) ? Stone.WHITE : Stone.BLACK;
+  }
+
+  /**
+   * Zwraca liczbę wykonanych ruchów w grze.
+   * 
+   * @return liczba ruchów
+   */
+  public int getMoveCount() {
+    return moveCount;
   }
 }

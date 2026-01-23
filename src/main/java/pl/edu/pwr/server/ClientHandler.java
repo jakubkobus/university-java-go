@@ -1,5 +1,6 @@
 package pl.edu.pwr.server;
 
+import pl.edu.pwr.database.service.GameService;
 import pl.edu.pwr.logic.Game;
 import pl.edu.pwr.logic.GameState;
 import pl.edu.pwr.logic.Stone;
@@ -64,6 +65,12 @@ public class ClientHandler implements Runnable {
   /** Mapa dostępnych komend */
   private Map<String, Command> commands = new HashMap<>();
 
+  /** Serwis do zarządzania grami w bazie danych */
+  private GameService gameService;
+
+  /** Identyfikator gry w bazie danych */
+  private Long gameId;
+
   /**
    * Konstruktor ClientHandler.
    * Inicjalizuje obsługę klienta, przydziela kolor kamieni i rejestruje dostępne komendy.
@@ -71,15 +78,20 @@ public class ClientHandler implements Runnable {
    * @param socket socket do komunikacji z klientem
    * @param playerId identyfikator gracza (1 = czarny, 2 = biały)
    * @param game instancja gry, w której będzie grać klient
+   * @param gameService serwis do zarządzania grami w bazie danych
+   * @param gameId identyfikator gry w bazie danych
    */
-  public ClientHandler(Socket socket, int playerId, Game game) {
+  public ClientHandler(Socket socket, int playerId, Game game, GameService gameService, Long gameId) {
     this.socket = socket;
     this.playerId = playerId;
     this.game = game;
     this.myColor = (playerId == 1) ? Stone.BLACK : Stone.WHITE;
+    this.gameService = gameService;
+    this.gameId = gameId;
 
-    commands.put("MOVE", new MoveCommand(game));
-    commands.put("PASS", new PassCommand(game));
+    commands.put("MOVE", new MoveCommand(game, gameService, gameId));
+    commands.put("PASS", new PassCommand(game, gameService, gameId));
+
     commands.put("SURRENDER", new SurrenderCommand(game));
     commands.put("REMOVE", new RemoveCommand(game));
     commands.put("FILL", new FillCommand(game));

@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import pl.edu.pwr.logic.Game;
+import pl.edu.pwr.database.service.GameService;
 
 /**
  * Serwer gry w Go obsługujący połączenia graczy.
@@ -34,6 +36,9 @@ public class Server {
   /** Flaga określająca, czy serwer powinien być uruchomiony */
   private volatile boolean isRunning = true;
 
+  /** Serwis do zarządzania grami w bazie danych */
+  private GameService gameService;
+
   /**
    * Konstruktor prywatny dla wzorca Singleton.
    */
@@ -53,6 +58,15 @@ public class Server {
           instance = new Server();
       }
     return instance;
+  }
+
+  /**
+   * Ustawia serwis do zarządzania grami w bazie danych.
+   * 
+   * @param gameService instancja GameService
+   */
+  public void setGameService(GameService gameService) {
+    this.gameService = gameService;
   }
 
   /**
@@ -94,8 +108,14 @@ public class Server {
 
         Game game = new Game(19);
 
-        ClientHandler handler1 = new ClientHandler(player1, 1, game);
-        ClientHandler handler2 = new ClientHandler(player2, 2, game);
+        Long gameId = null;
+        if (gameService != null) {
+          gameId = gameService.startNewGame("HUMAN", "HUMAN");
+          System.out.println("Utworzono gre w bazie o ID: " + gameId);
+        }
+
+        ClientHandler handler1 = new ClientHandler(player1, 1, game, gameService, gameId);
+        ClientHandler handler2 = new ClientHandler(player2, 2, game, gameService, gameId);
 
         handler1.setOpponent(handler2);
         handler2.setOpponent(handler1);
