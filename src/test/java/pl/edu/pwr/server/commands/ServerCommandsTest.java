@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import pl.edu.pwr.logic.Game;
+import pl.edu.pwr.logic.GameConstants;
 import pl.edu.pwr.logic.Stone;
 import pl.edu.pwr.server.ClientHandler;
 
@@ -41,7 +42,7 @@ class ServerCommandsTest {
 
   @BeforeEach
   void setUp() {
-    game = Mockito.spy(new Game(19));
+    game = Mockito.spy(new Game(GameConstants.STANDARD_BOARD_SIZE));
     sender = Mockito.mock(ClientHandler.class);
     opponent = Mockito.mock(ClientHandler.class);
 
@@ -62,14 +63,11 @@ class ServerCommandsTest {
    */
   @Test
   void testMoveCommandValid() {
-    // Given
     MoveCommand cmd = new MoveCommand(game);
     String[] args = { "MOVE", "1", "1" };
 
-    // When
     cmd.execute(args, sender);
 
-    // Then
     verify(game).makeMove(0, 0);
     verify(sender).sendBoard();
     verify(sender).sendMessage(contains("INFO"));

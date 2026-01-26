@@ -28,7 +28,7 @@ class GameRulesTest {
 
   @BeforeEach
   void setUp() {
-    game = new Game(19);
+    game = new Game(GameConstants.STANDARD_BOARD_SIZE);
   }
 
   /**
@@ -40,10 +40,10 @@ class GameRulesTest {
   @Test
   void testBasicAlternatingTurns() {
     assertEquals(Stone.BLACK, game.getCurrentPlayer());
-    assertTrue(game.makeMove(0, 0));
+    assertTrue(game.makeMove(0, 0).success());
 
     assertEquals(Stone.WHITE, game.getCurrentPlayer());
-    assertTrue(game.makeMove(0, 1));
+    assertTrue(game.makeMove(0, 1).success());
 
     assertEquals(Stone.BLACK, game.getCurrentPlayer());
   }
@@ -57,7 +57,7 @@ class GameRulesTest {
   @Test
   void testCannotPlayOnOccupiedIntersection() {
     game.makeMove(5, 5);
-    assertFalse(game.makeMove(5, 5));
+    assertFalse(game.makeMove(5, 5).success());
 
     assertEquals(Stone.WHITE, game.getCurrentPlayer());
   }
@@ -70,9 +70,9 @@ class GameRulesTest {
    */
   @Test
   void testCannotPlayOutOfBounds() {
-    assertFalse(game.makeMove(-1, 0));
-    assertFalse(game.makeMove(0, 19));
-    assertFalse(game.makeMove(19, 0));
+    assertFalse(game.makeMove(-1, 0).success());
+    assertFalse(game.makeMove(0, 19).success());
+    assertFalse(game.makeMove(19, 0).success());
   }
 
   /**
@@ -134,7 +134,7 @@ class GameRulesTest {
     suicideGame.makeMove(0, 0);
     suicideGame.makeMove(1, 0);
 
-    assertFalse(suicideGame.makeMove(0, 0), "Ruch samobójczy powinien być odrzucony");
+    assertFalse(suicideGame.makeMove(0, 0).success(), "Ruch samobójczy powinien być odrzucony");
   }
 
   /**
@@ -176,7 +176,7 @@ class GameRulesTest {
     game.makeMove(1, 0);
     game.makeMove(1, 1);
 
-    Game koGame = new Game(19);
+    Game koGame = new Game(GameConstants.STANDARD_BOARD_SIZE);
     koGame.makeMove(1, 0);
     koGame.makeMove(2, 0);
     koGame.makeMove(0, 1);
@@ -187,6 +187,6 @@ class GameRulesTest {
     koGame.makeMove(2, 1);
     koGame.makeMove(1, 1);
 
-    assertFalse(koGame.makeMove(2, 1), "Zasada Ko powinna zabronić natychmiastowego odbicia");
+    assertFalse(koGame.makeMove(2, 1).success(), "Zasada Ko powinna zabronić natychmiastowego odbicia");
   }
 }

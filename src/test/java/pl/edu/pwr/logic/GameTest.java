@@ -25,7 +25,7 @@ class GameTest {
 
   @BeforeEach
   void setUp() {
-    game = new Game(19);
+    game = new Game(GameConstants.STANDARD_BOARD_SIZE);
   }
 
   /**
@@ -63,9 +63,9 @@ class GameTest {
   @Test
   void testCannotPlaceOnOccupiedSpot() {
     game.makeMove(5, 5);
-    boolean success = game.makeMove(5, 5);
+    MoveResult result = game.makeMove(5, 5);
 
-    assertFalse(success, "Nie powinno się dać postawić kamienia na zajętym polu");
+    assertFalse(result.success(), "Nie powinno się dać postawić kamienia na zajętym polu");
     assertEquals(Stone.BLACK, game.getBoard().get(5, 5), "Kamień nie powinien zmienić koloru");
     assertEquals(Stone.WHITE, game.getCurrentPlayer(), "Tura nie powinna się zmienić po błędnym ruchu");
   }
@@ -92,15 +92,15 @@ class GameTest {
     assertEquals(Stone.NONE, game.getBoard().get(0, 0), "Biały kamień w rogu powinien zostać zbity (zniknąć)");
   }
 
-  /**
-   * Test zakazania ruchu samobójczego.
-   * 
-   * Sprawdza czy system zabrania ruchów samobójczych, czyli umieszczenia kamienia
-   * na polu, które nie posiada żadnych liberties i nie bije żadnych kamieni przeciwnika.
-   */
-  @Test
-  void suicideMoveIsForbidden() {
-        Game game = new Game(19);
+    /**
+     * Test zakazania ruchu samobójczego.
+     * 
+     * Sprawdza czy system zabrania ruchów samobójczych, czyli umieszczenia kamienia
+     * na polu, które nie posiada żadnych liberties i nie bije żadnych kamieni przeciwnika.
+     */
+    @Test
+    void suicideMoveIsForbidden() {
+        Game game = new Game(GameConstants.STANDARD_BOARD_SIZE);
 
         game.makeMove(1, 0);
         game.makeMove(10, 10);
@@ -110,9 +110,9 @@ class GameTest {
         game.makeMove(12, 12);
         game.makeMove(1, 2);
 
-        boolean allowed = game.makeMove(1, 1);
+        MoveResult result = game.makeMove(1, 1);
 
-        assertFalse(allowed, "Ruch samobójczy powinien być zabroniony");
+        assertFalse(result.success(), "Ruch samobójczy powinien być zabroniony");
     }
 
     /**
@@ -125,7 +125,7 @@ class GameTest {
      */
     @Test
     void suicideThatCapturesOpponentIsAllowed() {
-        Game game = new Game(19);
+        Game game = new Game(GameConstants.STANDARD_BOARD_SIZE);
 
         game.makeMove(1, 0);
         game.makeMove(18, 18);
@@ -137,9 +137,9 @@ class GameTest {
 
         game.makeMove(0, 0);
 
-        boolean allowed = game.makeMove(0, 1);
+        MoveResult result = game.makeMove(0, 1);
 
-        assertTrue(allowed, "Ruch samobójczy, który bije przeciwnika, jest dozwolony");
+        assertTrue(result.success(), "Ruch samobójczy, który bije przeciwnika, jest dozwolony");
 
         Board board = game.getBoard();
         assertEquals(Stone.NONE, board.get(0, 0), "Kamień biały powinien zostać zbity");

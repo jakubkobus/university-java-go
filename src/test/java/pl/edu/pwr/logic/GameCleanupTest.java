@@ -26,7 +26,7 @@ public class GameCleanupTest {
 
     @BeforeEach
     public void setUp() {
-        game = new Game(19);
+        game = new Game(GameConstants.STANDARD_BOARD_SIZE);
     }
 
     /**
@@ -55,6 +55,7 @@ public class GameCleanupTest {
 
         forceStone(0, 0, Stone.WHITE);
         forceStone(1, 0, Stone.WHITE);
+        
         forceStone(16, 18, Stone.WHITE);
         forceStone(16, 17, Stone.WHITE);
         forceStone(16, 16, Stone.WHITE);
@@ -73,6 +74,7 @@ public class GameCleanupTest {
 
         String res1 = game.removeDeadStone(0, 0, Stone.BLACK);
         String res2 = game.removeDeadStone(1, 0, Stone.BLACK);
+        
         assertEquals("OK", res1);
         assertEquals("OK", res2);
         assertEquals(2, game.getBlackPrisoners(), "Czarny powinien mieć 2 jeńców");
@@ -98,6 +100,6 @@ public class GameCleanupTest {
     }
 
     private void forceStone(int x, int y, Stone color) {
-        game.getBoard().placeStone(x, y, color);
+        game.getBoardForTesting().placeStone(x, y, color);
     }
 }
