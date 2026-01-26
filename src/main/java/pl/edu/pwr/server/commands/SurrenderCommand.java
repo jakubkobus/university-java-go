@@ -2,41 +2,43 @@ package pl.edu.pwr.server.commands;
 
 import pl.edu.pwr.logic.Game;
 import pl.edu.pwr.server.ClientHandler;
+import pl.edu.pwr.server.ServerMessages;
+import pl.edu.pwr.database.service.GameService;
 
 /**
  * Komenda serwera do poddania się gracza.
  * 
- * Odpowiada za:
- * <ul>
- *   <li>Interpretowanie żądania klienta do poddania się (surrender)</li>
- *   <li>Rejestrację poddania się w stanie gry</li>
- *   <li>Wysyłanie informacji do obu graczy o wyniku gry</li>
- *   <li>Obsługę scenariusza, gdy gra jest już skończona</li>
- * </ul>
- * 
- * Komenda umożliwia graczowi zrezygnowanie z gry, co skutkuje jego porażką
- * i zwycięstwem przeciwnika. Gra jest natychmiast kończona.
+ * Kończy grę poprzez poddanie się gracza, który wysłał komendę.
+ * Przeciwnik automatycznie zostaje zwycięzcą.
  * 
  * @author Jakub Kobus, Dawid Leśkiewicz
  * @version 1.0
  * @see Command
  * @see Game
  */
-public class SurrenderCommand implements Command {
-  
-  /** Instancja gry, na której będą wykonywane operacje */
-  private final Game game;
+public class SurrenderCommand extends BaseCommand {
 
   /**
    * Konstruktor SurrenderCommand.
-   * Inicjalizuje komendę z referencją do obiektu gry.
    * 
-   * @param game instancja gry, na której będzie wykonywana komenda
+   * @param game        instancja gry
+   * @param gameService serwis do zarządzania grami w bazie danych
+   * @param gameId      identyfikator gry w bazie danych
    */
-  public SurrenderCommand(Game game) {
-    this.game = game;
+  public SurrenderCommand(Game game, GameService gameService, Long gameId) {
+    super(game, gameService, gameId);
   }
 
+  /**
+   * Konstruktor SurrenderCommand bez serwisu bazy danych.
+   * 
+   * @param game instancja gry
+   */
+  public SurrenderCommand(Game game) {
+    super(game);
+  }
+
+  /**
   /**
    * Egzekwuje komendę poddania się gracza.
    * 
@@ -56,12 +58,20 @@ public class SurrenderCommand implements Command {
     if(game.isGameOver()) return;
     
     game.surrender(sender.getMyColor());
-    sender.sendMessage("GAME_OVER Poddales sie. Przegrales.");
+    
+    sender.sendBoard();
+    sender.sendMessage(ServerMessages.INFO_SURRENDERED);
+    sender.sendMessage("GAME_OVER " + ServerMessages.INFO_SURRENDERED);
     
     ClientHandler opponent = sender.getOpponent();
     if(opponent != null) {
-      opponent.sendMessage("INFO Przeciwnik sie poddal.");
+      opponent.sendBoard();
+      opponent.sendMessage(ServerMessages.INFO_OPPONENT_SURRENDERED);
       opponent.sendMessage("GAME_OVER " + game.getGameResult());
+    }
+    
+    if (gameService != null && gameId != null) {
+      gameService.saveGameResult(gameId, game.getGameResult());
     }
   }
 }

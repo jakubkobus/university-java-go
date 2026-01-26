@@ -1,9 +1,15 @@
 package pl.edu.pwr.server.commands;
 
+import pl.edu.pwr.logic.Board;
 import pl.edu.pwr.logic.Game;
+import pl.edu.pwr.logic.MoveResult;
 import pl.edu.pwr.logic.Stone;
 import pl.edu.pwr.server.ClientHandler;
+import pl.edu.pwr.server.ServerMessages;
 import pl.edu.pwr.database.service.GameService;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Komenda serwera do wykonywania ruchów w grze Go.
@@ -25,16 +31,7 @@ import pl.edu.pwr.database.service.GameService;
  * @see Command
  * @see Game
  */
-public class MoveCommand implements Command {
-
-  /** Instancja gry, na której będą wykonywane ruchy */
-  private final Game game;
-
-  /** Serwis do zarządzania grami w bazie danych */
-  private GameService gameService;
-
-  /** Identyfikator gry w bazie danych */
-  private Long gameId;
+public class MoveCommand extends BaseCommand {
 
   /**
    * Konstruktor MoveCommand.
@@ -46,9 +43,7 @@ public class MoveCommand implements Command {
    * @param gameId      identyfikator gry w bazie danych
    */
   public MoveCommand(Game game, GameService gameService, Long gameId) {
-    this.game = game;
-    this.gameService = gameService;
-    this.gameId = gameId;
+    super(game, gameService, gameId);
   }
 
   /**
@@ -58,7 +53,7 @@ public class MoveCommand implements Command {
    * @param game instancja gry, na której będą wykonywane ruchy
    */
   public MoveCommand(Game game) {
-    this(game, null, null);
+    super(game);
   }
 
   /**
@@ -84,54 +79,81 @@ public class MoveCommand implements Command {
    */
   @Override
   public void execute(String[] args, ClientHandler sender) {
-    if (args.length != 3) {
-      sender.sendMessage("ERR Zly format. Uzyj: MOVE x y");
+    if (!validateArgCount(args, 3, sender, "MOVE x y")) {
       return;
     }
 
     try {
-      int x = Integer.parseInt(args[1]) - 1;
-      int y = Integer.parseInt(args[2]) - 1;
+      int[] coords = parseCoordinates(args);
+      int x = coords[0];
+      int y = coords[1];
 
       Stone playerColor = sender.getMyColor();
 
-      if (game.getCurrentPlayer() != playerColor) {
-        sender.sendMessage("ERR To nie Twoja tura!");
-        return;
-      }
-
-      boolean ok;
+      MoveResult result;
+      int moveCount;
+      List<Board.Point> capturedStones;
+      
       synchronized (game) {
-        ok = game.makeMove(x, y);
+        if (!validateTurn(sender)) {
+          return;
+        }
+        
+        result = game.makeMove(x, y);
+        
+        if (result.success()) {
+          moveCount = game.getMoveCount();
+          capturedStones = game.getLastCapturedStones();
+        } else {
+          moveCount = 0;
+          capturedStones = new ArrayList<>();
+        }
       }
 
-      if (!ok) {
-        sender.sendMessage("ERR Ruch niedozwolony (zajete, samobojstwo lub poza plansza)");
+      if (!result.success()) {
+        String errorMsg = switch (result.reason()) {
+          case GAME_OVER -> ServerMessages.ERROR_GAME_OVER;
+          case OUT_OF_BOUNDS -> ServerMessages.ERROR_OUT_OF_BOUNDS;
+          case OCCUPIED -> ServerMessages.ERROR_OCCUPIED;
+          case SUICIDE -> ServerMessages.ERROR_SUICIDE;
+          case KO_RULE -> ServerMessages.ERROR_KO_RULE;
+          default -> "ERR Ruch niedozwolony: " + result.errorMessage();
+        };
+        sender.sendMessage(errorMsg);
         return;
       }
 
       if (gameService != null && gameId != null) {
         gameService.saveMove(
           gameId,
-          game.getMoveCount(),
+          moveCount,
           x,
           y,
           playerColor.toString(),
           "MOVE"
         );
+        
+        Stone capturedColor = (playerColor == Stone.BLACK) ? Stone.WHITE : Stone.BLACK;
+        for (var point : capturedStones) {
+          gameService.saveMove(
+            gameId,
+            moveCount,
+            point.x(),
+            point.y(),
+            capturedColor.toString(),
+            "CAPTURE"
+          );
+        }
       }
 
-      sender.sendBoard();
-      sender.sendMessage("INFO: Wykonano ruch: " + (x + 1) + " " + (y + 1));
-
-      ClientHandler opponent = sender.getOpponent();
-      if (opponent != null) {
-        opponent.sendBoard();
-        opponent.sendMessage("INFO: Przeciwnik wykonal ruch: " + (x + 1) + " " + (y + 1));
-      }
+      notifyBothPlayers(
+        sender,
+        ServerMessages.infoMoveExecuted(x + 1, y + 1),
+        ServerMessages.infoOpponentMoved(x + 1, y + 1)
+      );
 
     } catch (NumberFormatException e) {
-      sender.sendMessage("ERR Wspolrzedne musza byc liczbami");
+      sender.sendMessage(ServerMessages.ERROR_INVALID_COORDINATES);
     }
   }
 }

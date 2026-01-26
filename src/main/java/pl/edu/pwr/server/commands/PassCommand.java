@@ -1,7 +1,9 @@
 package pl.edu.pwr.server.commands;
 
 import pl.edu.pwr.logic.Game;
+import pl.edu.pwr.logic.GameConstants;
 import pl.edu.pwr.server.ClientHandler;
+import pl.edu.pwr.server.ServerMessages;
 import pl.edu.pwr.database.service.GameService;
 
 /**
@@ -24,16 +26,7 @@ import pl.edu.pwr.database.service.GameService;
  * @see Command
  * @see Game
  */
-public class PassCommand implements Command {
-
-  /** Instancja gry, na której będą wykonywane operacje */
-  private final Game game;
-
-  /** Serwis do zarządzania grami w bazie danych */
-  private GameService gameService;
-
-  /** Identyfikator gry w bazie danych */
-  private Long gameId;
+public class PassCommand extends BaseCommand {
 
   /**
    * Konstruktor PassCommand.
@@ -45,9 +38,7 @@ public class PassCommand implements Command {
    * @param gameId      identyfikator gry w bazie danych
    */
   public PassCommand(Game game, GameService gameService, Long gameId) {
-    this.game = game;
-    this.gameService = gameService;
-    this.gameId = gameId;
+    super(game, gameService, gameId);
   }
 
   /**
@@ -57,7 +48,7 @@ public class PassCommand implements Command {
    * @param game instancja gry, na której będzie wykonywana komenda
    */
   public PassCommand(Game game) {
-    this(game, null, null);
+    super(game);
   }
 
   /**
@@ -78,44 +69,48 @@ public class PassCommand implements Command {
    */
   @Override
   public void execute(String[] args, ClientHandler sender) {
-    if (game.getCurrentPlayer() != sender.getMyColor()) {
-      sender.sendMessage("ERR To nie Twoja tura!");
-      return;
-    }
+    int moveCount;
+    boolean isGameOver;
+    String gameResult;
+    
+    synchronized (game) {
+      if (!validateTurn(sender)) {
+        return;
+      }
 
-    game.pass();
+      game.pass();
+      
+      moveCount = game.getMoveCount();
+      isGameOver = game.isGameOver();
+      gameResult = game.getGameResult();
+    }
 
     if (gameService != null && gameId != null) {
       gameService.saveMove(
         gameId,
-        game.getMoveCount(),
-        -1,
-        -1,
+        moveCount,
+        GameConstants.PASS_COORDINATE,
+        GameConstants.PASS_COORDINATE,
         sender.getMyColor().toString(),
         "PASS"
       );
     }
 
-    sender.sendMessage("INFO Spasowales");
-
     ClientHandler opponent = sender.getOpponent();
-    if (opponent != null) {
-      opponent.sendMessage("INFO Przeciwnik spasowal");
-      if (game.isGameOver()) {
-        sender.sendMessage("GAME_OVER " + game.getGameResult());
-        opponent.sendMessage("GAME_OVER " + game.getGameResult());
-
-        if (gameService != null) {
-          gameService.saveGameResult(gameId, game.getGameResult());
-        }
-      } else {
-        opponent.sendBoard();
+    
+    if (isGameOver) {
+      notifyBothPlayers(sender, ServerMessages.INFO_PASSED, ServerMessages.INFO_OPPONENT_PASSED);
+      sender.sendMessage("GAME_OVER " + gameResult);
+      
+      if (opponent != null) {
+        opponent.sendMessage("GAME_OVER " + gameResult);
       }
-    } else if (game.isGameOver()) {
-      sender.sendMessage("GAME_OVER " + game.getGameResult());
-    }
 
-    if (!game.isGameOver())
-      sender.sendBoard();
+      if (gameService != null) {
+        gameService.saveGameResult(gameId, gameResult);
+      }
+    } else {
+      notifyBothPlayers(sender, ServerMessages.INFO_PASSED, ServerMessages.INFO_OPPONENT_PASSED);
+    }
   }
 }
