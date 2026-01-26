@@ -1,5 +1,7 @@
 package pl.edu.pwr.server;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import pl.edu.pwr.database.service.GameService;
 import pl.edu.pwr.logic.Game;
 import pl.edu.pwr.logic.GameState;
@@ -40,6 +42,8 @@ import java.util.Map;
  * @see Command
  */
 public class ClientHandler implements Runnable {
+  
+  private static final Logger logger = LoggerFactory.getLogger(ClientHandler.class);
   
   /** Socket do komunikacji z klientem */
   private Socket socket;
@@ -93,8 +97,8 @@ public class ClientHandler implements Runnable {
     commands.put("PASS", new PassCommand(game, gameService, gameId));
 
     commands.put("SURRENDER", new SurrenderCommand(game));
-    commands.put("REMOVE", new RemoveCommand(game));
-    commands.put("FILL", new FillCommand(game));
+    commands.put("REMOVE", new RemoveCommand(game, gameService, gameId));
+    commands.put("FILL", new FillCommand(game, gameService, gameId));
   }
 
   /**
@@ -129,7 +133,7 @@ public class ClientHandler implements Runnable {
    * 
    * Przepływ:
    * <ol>
-   *   <li>Inicjalizuje strumienie wejścia/wyjścia</li>
+   *   <li>Inicjalizuje strumienie wejścia/wyjściaprocess</li>
    *   <li>Wysyła początkowy stan planszy i informację o kolorze gracza</li>
    *   <li>Wciąż czeka na i przetwarza komendy od klienta</li>
    *   <li>Parsuje komendę i wyłania jej z mapy dostępnych komend</li>
@@ -148,7 +152,7 @@ public class ClientHandler implements Runnable {
 
       String inputLine;
       while((inputLine = in.readLine()) != null) {
-        System.out.println("[Gracz " + playerId + "] " + inputLine);
+        logger.debug("Player {} sent command: {}", playerId, inputLine);
 
         String[] parts = inputLine.split(" ");
         String commandName = parts[0].toUpperCase();
@@ -160,12 +164,13 @@ public class ClientHandler implements Runnable {
         }
       }
     } catch (IOException e) {
-      System.out.println("[Gracz " + playerId + "] rozlaczyl sie");
+      logger.info("Player {} disconnected: {}", playerId, e.getMessage());
     } finally {
       try {
         socket.close();
+        logger.info("Socket closed for player {}", playerId);
       } catch(IOException e) {
-        e.printStackTrace();
+        logger.error("Failed to close socket for player {}", playerId, e);
       }
     }
   }

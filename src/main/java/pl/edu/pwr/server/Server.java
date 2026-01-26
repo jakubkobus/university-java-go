@@ -1,9 +1,12 @@
 package pl.edu.pwr.server;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import pl.edu.pwr.config.ServerProperties;
 import pl.edu.pwr.logic.Game;
+import pl.edu.pwr.logic.GameConstants;
 import pl.edu.pwr.database.service.GameService;
 
 import java.io.IOException;
@@ -33,6 +36,8 @@ import java.net.Socket;
  */
 @Component
 public class Server {
+  
+  private static final Logger logger = LoggerFactory.getLogger(Server.class);
   
   /** Flaga określająca, czy serwer powinien być uruchomiony */
   private volatile boolean isRunning;
@@ -75,30 +80,30 @@ public class Server {
    */
   public void start() {
     int port = serverProperties.getPort();
-    System.out.println("Serwer uruchamia sie na porcie " + port);
+    logger.info("Server starting on port {}", port);
     
     try(ServerSocket listener = new ServerSocket(port)) {
 
       while(isRunning) {
         Socket player1 = listener.accept();
-        System.out.println("[Gracz 1] dolaczyl");
+        logger.info("Player 1 (BLACK) connected from {}", player1.getRemoteSocketAddress());
         
         PrintWriter tempOut1 = new PrintWriter(player1.getOutputStream(), true);
-        tempOut1.println("[SERWER] Polaczono jako Gracz 1 (CZARNY). Czekanie na przeciwnika...");
+        tempOut1.println(ServerMessages.SERVER_CONNECTED_PLAYER1);
 
         Socket player2 = listener.accept();
-        System.out.println("[Gracz 2] dolaczyl");
+        logger.info("Player 2 (WHITE) connected from {}", player2.getRemoteSocketAddress());
         PrintWriter tempOut2 = new PrintWriter(player2.getOutputStream(), true);
-        tempOut2.println("[SERWER] Polaczono jako Gracz 2 (BIALY). Gra sie rozpoczyna");
+        tempOut2.println(ServerMessages.SERVER_CONNECTED_PLAYER2);
         
-        tempOut1.println("[SERWER] Przeciwnik dolaczyl. Gra sie rozpoczyna!");
+        tempOut1.println(ServerMessages.SERVER_OPPONENT_JOINED);
 
-        Game game = new Game(19);
+        Game game = new Game(GameConstants.STANDARD_BOARD_SIZE);
 
         Long gameId = null;
         if (gameService != null) {
           gameId = gameService.startNewGame("HUMAN", "HUMAN");
-          System.out.println("Utworzono gre w bazie o ID: " + gameId);
+          logger.info("Created new game in database with ID: {}", gameId);
         }
 
         ClientHandler handler1 = new ClientHandler(player1, 1, game, gameService, gameId);
@@ -109,10 +114,12 @@ public class Server {
 
         new Thread(handler1).start();
         new Thread(handler2).start();
+        
+        logger.info("Game started between player 1 and player 2");
       }
 
     } catch(IOException e) {
-      e.printStackTrace();
+      logger.error("Server error on port {}: {}", port, e.getMessage(), e);
     }
   }
 
