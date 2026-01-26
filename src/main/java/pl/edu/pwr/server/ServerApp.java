@@ -26,7 +26,13 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
  * @see Server
  */
 @SpringBootApplication
-@ComponentScan(basePackages = "pl.edu.pwr")
+@ComponentScan(basePackages = {
+    "pl.edu.pwr.server",
+    "pl.edu.pwr.database",
+    "pl.edu.pwr.config",
+    "pl.edu.pwr.exception",
+    "pl.edu.pwr.logic"
+})
 @EnableJpaRepositories(basePackages = "pl.edu.pwr.database.repositories")
 @EntityScan(basePackages = "pl.edu.pwr.database.entities")
 public class ServerApp implements CommandLineRunner {
