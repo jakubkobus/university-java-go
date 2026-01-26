@@ -5,8 +5,6 @@ import pl.edu.pwr.logic.scoring.ScoringStrategy;
 import pl.edu.pwr.logic.scoring.ScoringService;
 import java.util.List;
 import java.util.ArrayList;
-import java.util.Set;
-import java.util.HashSet;
 
 /**
  * Główna klasa logiki gry w Go.
@@ -47,6 +45,9 @@ public class Game {
   private GameState state = GameState.IN_PROGRESS;
   private final IScoringStrategy scoringStrategy = new ScoringStrategy();
   private final ScoringService scoringService = new ScoringService();
+  private final CaptureHandler captureHandler = new CaptureHandler();
+  
+  private List<Board.Point> lastCapturedStones = new ArrayList<>();
 
   /**
    * Konstruktor Game.
@@ -76,14 +77,19 @@ public class Game {
    * 
    * @param x współrzędna x pola (0-indeksowana)
    * @param y współrzędna y pola (0-indeksowana)
-   * @return true jeśli ruch był dozwolony i wykonany, false w przeciwnym razie
+   * @return MoveResult zawierający informację o sukcesie lub szczegółowy błąd
    */
-  public synchronized boolean makeMove(int x, int y) {
+  public synchronized MoveResult makeMove(int x, int y) {
     if (gameOver)
-      return false;
+      return MoveResult.ofError(MoveResult.MoveFailureReason.GAME_OVER, "Game is already over");
 
-    if (!board.isWithinBounds(x, y) || !board.isEmpty(x, y))
-      return false;
+    if (!board.isWithinBounds(x, y))
+      return MoveResult.ofError(MoveResult.MoveFailureReason.OUT_OF_BOUNDS, 
+          String.format("Position (%d, %d) is outside the board boundaries", x, y));
+
+    if (!board.isEmpty(x, y))
+      return MoveResult.ofError(MoveResult.MoveFailureReason.OCCUPIED, 
+          String.format("Position (%d, %d) is already occupied", x, y));
 
     Board tempBoard = new Board(board);
     tempBoard.placeStone(x, y, currentPlayer);
@@ -94,17 +100,30 @@ public class Game {
     int backupBlack = blackPrisoners;
     int backupWhite = whitePrisoners;
 
-    board.placeStone(x, y, currentPlayer);
-    checkCaptures(x, y, opponent);
+    lastCapturedStones.clear();
 
-    if (countGroupLiberties(x, y, currentPlayer) == 0) {
+    board.placeStone(x, y, currentPlayer);
+    lastCapturedStones = captureHandler.checkAndRemoveCaptures(board, x, y, opponent);
+    
+    int capturedCount = lastCapturedStones.size();
+    if (capturedCount > 0) {
+      if (currentPlayer == Stone.BLACK) {
+        blackPrisoners += capturedCount;
+      } else {
+        whitePrisoners += capturedCount;
+      }
+    }
+
+    if (captureHandler.countGroupLiberties(board, x, y, currentPlayer) == 0) {
       restoreBoard(backupBoard, backupBlack, backupWhite);
-      return false;
+      return MoveResult.ofError(MoveResult.MoveFailureReason.SUICIDE, 
+          String.format("Move at (%d, %d) would be suicide - group has no liberties", x, y));
     }
 
     if (previousBoard != null && board.isTheSameAs(previousBoard)) {
       restoreBoard(backupBoard, backupBlack, backupWhite);
-      return false;
+      return MoveResult.ofError(MoveResult.MoveFailureReason.KO_RULE, 
+          String.format("Move at (%d, %d) violates Ko rule - would repeat previous board state", x, y));
     }
 
     moveCount++;
@@ -112,7 +131,7 @@ public class Game {
     previousBoard = backupBoard;
 
     switchPlayer();
-    return true;
+    return MoveResult.ofSuccess();
   }
 
   /**
@@ -130,98 +149,6 @@ public class Game {
 
     this.blackPrisoners = bPris;
     this.whitePrisoners = wPris;
-  }
-
-  /**
-   * Sprawdza i usuwa zbyte grupy kamieni przeciwnika.
-   * Metoda wywoływana po umieszczeniu kamienia.
-   * 
-   * @param x współrzędna x nowo umieszczonego kamienia
-   * @param y współrzędna y nowo umieszczonego kamienia
-   * @param opponentColor kolor przeciwnika (grupy do sprawdzenia)
-   */
-  private void checkCaptures(int x, int y, Stone opponentColor) {
-    List<Board.Point> neighbors = board.getNeighbors(x, y);
-
-    for (Board.Point n : neighbors) {
-      Stone neighborStone = board.get(n.x(), n.y());
-
-      if (neighborStone == opponentColor)
-        if (countGroupLiberties(n.x(), n.y(), opponentColor) == 0)
-          removeGroup(n.x(), n.y(), opponentColor);
-    }
-  }
-
-  /**
-   * Liczy wolne pola (liberties) dla grupy kamieni.
-   * Używa algorytmu DFS (Depth-First Search) do eksploracji grupy.
-   * 
-   * @param startX współrzędna x pola startowego
-   * @param startY współrzędna y pola startowego
-   * @param color kolor grupy do sprawdzenia
-   * @return liczba wolnych pól otaczających grupę
-   */
-  private int countGroupLiberties(int startX, int startY, Stone color) {
-    Set<String> visited = new HashSet<>();
-    Set<String> liberties = new HashSet<>();
-    List<Board.Point> stack = new ArrayList<>();
-    stack.add(new Board.Point(startX, startY));
-
-    while (!stack.isEmpty()) {
-      Board.Point current = stack.remove(0);
-      String key = current.x() + "," + current.y();
-
-      if (visited.contains(key))
-        continue;
-      visited.add(key);
-
-      for (Board.Point neighbor : board.getNeighbors(current.x(), current.y())) {
-        Stone s = board.get(neighbor.x(), neighbor.y());
-        if (s == Stone.NONE)
-          liberties.add(neighbor.x() + "," + neighbor.y());
-        else if (s == color)
-          stack.add(neighbor);
-      }
-    }
-    return liberties.size();
-  }
-
-  /**
-   * Usuwa zbytą grupę kamieni i dodaje je do jeńców aktualnego gracza.
-   * Używa algorytmu DFS do znalezienia wszystkich kamieni w grupie.
-   * 
-   * @param startX współrzędna x kamienia należącego do grupy
-   * @param startY współrzędna y kamienia należącego do grupy
-   * @param color kolor grupy do usunięcia
-   */
-  private void removeGroup(int startX, int startY, Stone color) {
-    List<Board.Point> stack = new ArrayList<>();
-    stack.add(new Board.Point(startX, startY));
-    Set<String> visited = new HashSet<>();
-
-    int stonesCaptured = 0;
-
-    while (!stack.isEmpty()) {
-      Board.Point current = stack.remove(0);
-      String key = current.x() + "," + current.y();
-
-      if (visited.contains(key))
-        continue;
-      visited.add(key);
-
-      board.placeStone(current.x(), current.y(), Stone.NONE);
-      stonesCaptured++;
-
-      for (Board.Point neighbor : board.getNeighbors(current.x(), current.y()))
-        if (board.get(neighbor.x(), neighbor.y()) == color)
-          stack.add(neighbor);
-    }
-
-    if (currentPlayer == Stone.BLACK) {
-      blackPrisoners += stonesCaptured;
-    } else {
-      whitePrisoners += stonesCaptured;
-    }
   }
 
   /**
@@ -323,10 +250,11 @@ public class Game {
 
   /**
    * Zwraca aktualny stan gry.
+   * THREAD-SAFE: Synchronized to ensure consistent read.
    * 
    * @return aktualny GameState (IN_PROGRESS, CLEANUP lub FINISHED)
    */
-  public GameState getState() {
+  public synchronized GameState getState() {
     return state;
   }
 
@@ -365,72 +293,101 @@ public class Game {
 
   /**
    * Zwraca planszę gry.
+   * THREAD-SAFE: Returns defensive copy to prevent external modification.
    * 
-   * @return Board zawierająca aktualny stan gry
+   * @return Board zawierająca aktualny stan gry (kopia defensywna)
    */
-  public Board getBoard() {
+  public synchronized Board getBoard() {
+    return new Board(board);
+  }
+
+  /**
+   * Zwraca bezpośredni dostęp do planszy (tylko do testów).
+   * Package-private - dostępny tylko w tym samym pakiecie dla celów testowych.
+   * UWAGA: Zwraca referencję do oryginalnej planszy, nie kopię!
+   * 
+   * @return Board - oryginalna plansza (nie kopia)
+   */
+  synchronized Board getBoardForTesting() {
     return board;
   }
 
   /**
    * Zwraca gracza mającego aktualnie turę.
+   * THREAD-SAFE: Synchronized to ensure consistent read.
    * 
    * @return Stone (BLACK lub WHITE)
    */
-  public Stone getCurrentPlayer() {
+  public synchronized Stone getCurrentPlayer() {
     return currentPlayer;
   }
 
   /**
    * Zwraca liczbę jeńców czarnych graczy.
+   * THREAD-SAFE: Synchronized to ensure consistent read.
    * 
    * @return liczba zbytych kamieni czarnych
    */
-  public int getBlackPrisoners() {
+  public synchronized int getBlackPrisoners() {
     return blackPrisoners;
   }
 
   /**
    * Zwraca liczbę jeńców białych graczy.
+   * THREAD-SAFE: Synchronized to ensure consistent read.
    * 
    * @return liczba zbytych kamieni białych
    */
-  public int getWhitePrisoners() {
+  public synchronized int getWhitePrisoners() {
     return whitePrisoners;
   }
 
   /**
    * Sprawdza czy gra się skończyła.
+   * THREAD-SAFE: Synchronized to ensure consistent read.
    * 
    * @return true jeśli gra jest skończona, false w przeciwnym razie
    */
-  public boolean isGameOver() {
+  public synchronized boolean isGameOver() {
     return gameOver;
   }
 
   /**
    * Zwraca tekstowy wynik końcowy gry.
+   * THREAD-SAFE: Synchronized to ensure consistent read.
    * 
    * @return string zawierający informacje o zwycięzcy i punktacji
    */
-  public String getGameResult() {
+  public synchronized String getGameResult() {
     return gameResult;
   }
 
   /**
    * Zmienia turę na drugiego gracza.
    * Przechodzi z BLACK na WHITE lub odwrotnie.
+   * THREAD-SAFE: Synchronized to ensure atomic state change.
    */
-  public void switchPlayer() {
+  public synchronized void switchPlayer() {
     currentPlayer = (currentPlayer == Stone.BLACK) ? Stone.WHITE : Stone.BLACK;
   }
 
   /**
    * Zwraca liczbę wykonanych ruchów w grze.
+   * THREAD-SAFE: Synchronized to ensure consistent read.
    * 
    * @return liczba ruchów
    */
-  public int getMoveCount() {
+  public synchronized int getMoveCount() {
     return moveCount;
+  }
+
+  /**
+   * Zwraca listę kamieni zbytych podczas ostatniego ruchu.
+   * THREAD-SAFE: Synchronized and returns defensive copy.
+   * 
+   * @return lista punktów reprezentujących zbyte kamienie (kopia defensywna)
+   */
+  public synchronized List<Board.Point> getLastCapturedStones() {
+    return new ArrayList<>(lastCapturedStones);
   }
 }
