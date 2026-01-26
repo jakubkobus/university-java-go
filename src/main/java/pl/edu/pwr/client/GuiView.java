@@ -62,10 +62,8 @@ public class GuiView implements GameView {
    */
   @Override
   public void startInteraction(ClientFacade client) {
-    // Zapisanie referencji do fasady klienta
     clientRef = client;
     instance = this;
-    // Uruchomienie aplikacji JavaFX w oddzielnym wątku
     new Thread(() -> Application.launch(AppWindow.class)).start();
   }
 
@@ -116,10 +114,10 @@ public class GuiView implements GameView {
     private static final int BOARD_SIZE = 19;
     
     /** Rozmiar jednego pola planszy w pikselach */
-    private static final int CELL_SIZE = 40;
+    private static final int CELL_SIZE = 35;
     
     /** Rozmiar narysowanego kamienia w pikselach */
-    private static final double STONE_SIZE = 18.0;
+    private static final double STONE_SIZE = 16.0;
 
     /** Pole tekstowe dla dziennika komunikatów */
     private TextArea logArea;
@@ -168,13 +166,28 @@ public class GuiView implements GameView {
       }
 
       BorderPane root = new BorderPane();
-      root.setStyle("-fx-background-color: #333333;");
+      root.setStyle("-fx-background-color: linear-gradient(to bottom, #2c3e50, #34495e);");
+
+      HBox titleBar = new HBox();
+      titleBar.setPadding(new Insets(15, 20, 15, 20));
+      titleBar.setAlignment(Pos.CENTER);
+      titleBar.setStyle("-fx-background-color: linear-gradient(to bottom, #1a252f, #2c3e50);");
+      
+      Label titleLabel = new Label("Gra GO");
+      titleLabel.setTextFill(Color.web("#ecf0f1"));
+      titleLabel.setFont(Font.font("Arial", 28));
+      titleLabel.setStyle("-fx-font-weight: bold;");
+      
+      titleBar.getChildren().add(titleLabel);
+      root.setTop(titleBar);
 
       StackPane boardContainer = new StackPane();
       boardContainer.setPadding(new Insets(20));
       boardContainer.setStyle(
-        "-fx-background-color: #e3c476; " +
-        "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 20, 0, 0, 0);"
+        "-fx-background-color: linear-gradient(to bottom right, #d4a574, #e3c476);" +
+        "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.6), 25, 0, 0, 5);" +
+        "-fx-border-radius: 10;" +
+        "-fx-background-radius: 10;"
       );
 
       GridPane boardGrid = createBoard();
@@ -182,61 +195,86 @@ public class GuiView implements GameView {
 
       VBox centerBox = new VBox(boardContainer);
       centerBox.setAlignment(Pos.CENTER);
+      centerBox.setPadding(new Insets(10));
       root.setCenter(centerBox);
 
-      VBox sidePanel = new VBox(10);
-      sidePanel.setPadding(new Insets(15));
-      sidePanel.setPrefWidth(300);
-      sidePanel.setStyle("-fx-background-color: #444444;");
+      VBox bottomPanel = new VBox(10);
+      bottomPanel.setPadding(new Insets(15));
+      bottomPanel.setStyle("-fx-background-color: linear-gradient(to bottom, #34495e, #2c3e50);");
 
-      Label titleLabel = new Label("Gra w Go");
-      titleLabel.setTextFill(Color.WHITE);
-      titleLabel.setFont(new Font("Arial", 24));
-
-      logArea = new TextArea();
-      logArea.setEditable(false);
-      logArea.setWrapText(true);
-      logArea.setPrefHeight(400);
-      logArea.setStyle(
-          "-fx-control-inner-background: #222222; -fx-text-fill: #00ff00; -fx-font-family: 'Consolas', monospace;");
-
-      HBox actionButtons = new HBox(10);
+      HBox actionButtons = new HBox(15);
       actionButtons.setAlignment(Pos.CENTER);
 
-      Button passBtn = createStyledButton("PASS", "#d35400");
+      Button passBtn = createStyledButton("PASS", "#e67e22", "#d35400");
+      passBtn.setPrefWidth(150);
       passBtn.setOnAction(e -> clientRef.sendMessage("PASS"));
 
-      Button surrenderBtn = createStyledButton("SURRENDER", "#c0392b");
+      Button surrenderBtn = createStyledButton("SURRENDER", "#e74c3c", "#c0392b");
+      surrenderBtn.setPrefWidth(150);
       surrenderBtn.setOnAction(e -> clientRef.sendMessage("SURRENDER"));
 
       actionButtons.getChildren().addAll(passBtn, surrenderBtn);
 
       cleanupPanel = new VBox(10);
+      cleanupPanel.setPadding(new Insets(12));
       cleanupPanel.setStyle(
-          "-fx-padding: 10; -fx-border-color: #f1c40f; -fx-border-width: 2; -fx-border-radius: 5; -fx-background-color: #555;");
+          "-fx-border-color: #f39c12; " +
+          "-fx-border-width: 2; " +
+          "-fx-border-radius: 8; " +
+          "-fx-background-color: rgba(52, 73, 94, 0.8);" +
+          "-fx-background-radius: 8;");
       cleanupPanel.setVisible(false);
 
-      Label cleanupLabel = new Label("Faza Cleanup:");
-      cleanupLabel.setTextFill(Color.GOLD);
+      Label cleanupLabel = new Label("⚙ Faza Cleanup");
+      cleanupLabel.setTextFill(Color.web("#f39c12"));
       cleanupLabel.setFont(Font.font("Arial", 16));
+      cleanupLabel.setStyle("-fx-font-weight: bold;");
 
       cleanupGroup = new ToggleGroup();
-      rbRemove = new RadioButton("Usuń martwy kamień (REMOVE)");
-      rbRemove.setTextFill(Color.WHITE);
+      
+      HBox cleanupOptions = new HBox(20);
+      cleanupOptions.setAlignment(Pos.CENTER);
+      
+      rbRemove = new RadioButton("🗑 Usuń martwy kamień");
+      rbRemove.setTextFill(Color.web("#ecf0f1"));
+      rbRemove.setFont(Font.font("Arial", 14));
       rbRemove.setToggleGroup(cleanupGroup);
       rbRemove.setSelected(true);
 
-      rbFill = new RadioButton("Postaw jeńca (FILL)");
-      rbFill.setTextFill(Color.WHITE);
+      rbFill = new RadioButton("⭘ Postaw jeńca");
+      rbFill.setTextFill(Color.web("#ecf0f1"));
+      rbFill.setFont(Font.font("Arial", 14));
       rbFill.setToggleGroup(cleanupGroup);
 
-      cleanupPanel.getChildren().addAll(cleanupLabel, rbRemove, rbFill);
+      cleanupOptions.getChildren().addAll(rbRemove, rbFill);
+      cleanupPanel.getChildren().addAll(cleanupLabel, cleanupOptions);
 
-      sidePanel.getChildren().addAll(titleLabel, logArea, actionButtons, cleanupPanel);
-      root.setRight(sidePanel);
+      logArea = new TextArea();
+      logArea.setEditable(false);
+      logArea.setWrapText(true);
+      logArea.setPrefHeight(120);
+      logArea.setMinHeight(120);
+      logArea.setStyle(
+          "-fx-control-inner-background: #1a1a1a; " +
+          "-fx-text-fill: #2ecc71; " +
+          "-fx-font-family: 'Consolas', 'Monaco', monospace; " +
+          "-fx-font-size: 12px; " +
+          "-fx-border-color: #34495e; " +
+          "-fx-border-width: 2; " +
+          "-fx-border-radius: 5; " +
+          "-fx-background-radius: 5;");
 
-      Scene scene = new Scene(root, 1100, 850);
-      stage.setTitle("Go Game Client - JavaFX");
+      Label logLabel = new Label("📋 Game Log");
+      logLabel.setTextFill(Color.web("#95a5a6"));
+      logLabel.setFont(Font.font("Arial", 14));
+      logLabel.setStyle("-fx-font-weight: bold;");
+
+      bottomPanel.getChildren().addAll(actionButtons, cleanupPanel, logLabel, logArea);
+      VBox.setVgrow(logArea, Priority.SOMETIMES);
+      root.setBottom(bottomPanel);
+
+      Scene scene = new Scene(root, 950, 1150);
+      stage.setTitle("Go Game Client");
       stage.setOnCloseRequest(e -> {
         clientRef.disconnect();
         Platform.exit();
@@ -250,16 +288,33 @@ public class GuiView implements GameView {
      * Tworzy stylizowany przycisk z określonym tekstem i kolorem.
      * 
      * @param text tekst na przycisku
-     * @param colorHex kolor tła w formacie hexadecymalnym (np. "#d35400")
+     * @param colorHex kolor tła w formacie hexadecymalnym (np. "#e67e22")
+     * @param hoverColorHex kolor tła po najechaniu myszą (np. "#d35400")
      * @return skonfigurowany przycisk
      */
-    private Button createStyledButton(String text, String colorHex) {
+    private Button createStyledButton(String text, String colorHex, String hoverColorHex) {
       Button btn = new Button(text);
-      btn.setStyle(
+      String baseStyle = 
           "-fx-background-color: " + colorHex + "; " +
-              "-fx-text-fill: white; " +
-              "-fx-font-weight: bold; " +
-              "-fx-cursor: hand;");
+          "-fx-text-fill: white; " +
+          "-fx-font-weight: bold; " +
+          "-fx-font-size: 14px; " +
+          "-fx-padding: 10 20; " +
+          "-fx-background-radius: 5; " +
+          "-fx-cursor: hand; " +
+          "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 5, 0, 0, 2);";
+      
+      btn.setStyle(baseStyle);
+      
+      btn.setOnMouseEntered(e -> {
+        btn.setStyle(baseStyle.replace(colorHex, hoverColorHex) + 
+            "-fx-scale-x: 1.05; -fx-scale-y: 1.05;");
+      });
+      
+      btn.setOnMouseExited(e -> {
+        btn.setStyle(baseStyle);
+      });
+      
       btn.setPrefWidth(120);
       return btn;
     }
@@ -276,8 +331,8 @@ public class GuiView implements GameView {
           cell.setPrefSize(CELL_SIZE, CELL_SIZE);
 
           Line hLine = new Line();
-          hLine.setStroke(Color.BLACK);
-          hLine.setStrokeWidth(1.0);
+          hLine.setStroke(Color.web("#2c2416"));
+          hLine.setStrokeWidth(1.2);
           double startX = (x == 0) ? CELL_SIZE / 2.0 : 0;
           double endX = (x == BOARD_SIZE - 1) ? CELL_SIZE / 2.0 : CELL_SIZE;
           hLine.setStartX(startX);
@@ -286,8 +341,8 @@ public class GuiView implements GameView {
           hLine.setEndY(CELL_SIZE / 2.0);
 
           Line vLine = new Line();
-          vLine.setStroke(Color.BLACK);
-          vLine.setStrokeWidth(1.0);
+          vLine.setStroke(Color.web("#2c2416"));
+          vLine.setStrokeWidth(1.2);
           double startY = (y == 0) ? CELL_SIZE / 2.0 : 0;
           double endY = (y == BOARD_SIZE - 1) ? CELL_SIZE / 2.0 : CELL_SIZE;
           vLine.setStartX(CELL_SIZE / 2.0);
@@ -299,7 +354,7 @@ public class GuiView implements GameView {
           cell.getChildren().add(linesPane);
 
           if (isHoshi(x, y)) {
-            Circle hoshi = new Circle(4.0, Color.BLACK);
+            Circle hoshi = new Circle(4.5, Color.web("#2c2416"));
             cell.getChildren().add(hoshi);
           }
 
@@ -308,6 +363,16 @@ public class GuiView implements GameView {
 
           int finalX = x;
           int finalY = y;
+
+          cell.setOnMouseEntered(e -> {
+            if (!hasStone(finalX, finalY)) {
+              cell.setStyle("-fx-background-color: rgba(255, 255, 255, 0.15);");
+            }
+          });
+          
+          cell.setOnMouseExited(e -> {
+            cell.setStyle("");
+          });
 
           cell.setOnMouseClicked(e -> handleBoardClick(finalX, finalY));
 
@@ -352,6 +417,19 @@ public class GuiView implements GameView {
       boolean xMatch = (x == 3 || x == 9 || x == 15);
       boolean yMatch = (y == 3 || y == 9 || y == 15);
       return xMatch && yMatch;
+    }
+
+    /**
+     * Sprawdza czy pole zawiera kamień.
+     * 
+     * @param x współrzędna x pola
+     * @param y współrzędna y pola
+     * @return true jeśli pole zawiera kamień, false w przeciwnym razie
+     */
+    private boolean hasStone(int x, int y) {
+      StackPane cell = cells[x][y];
+      return cell.getChildren().stream()
+          .anyMatch(node -> node instanceof Circle && ((Circle) node).getRadius() > 5.0);
     }
 
     /**
@@ -475,14 +553,16 @@ public class GuiView implements GameView {
       if (color != Stone.NONE) {
         Circle stone = new Circle(STONE_SIZE);
 
-        stone.setEffect(new DropShadow(5.0, 3.0, 3.0, Color.color(0, 0, 0, 0.4)));
-
         if (color == Stone.BLACK) {
-          stone.setFill(Color.BLACK);
-          stone.setStroke(Color.BLACK);
+          stone.setFill(Color.web("#1a1a1a"));
+          stone.setStroke(Color.web("#000000"));
+          stone.setStrokeWidth(1.0);
+          stone.setEffect(new DropShadow(8.0, 3.0, 3.0, Color.color(0, 0, 0, 0.7)));
         } else {
-          stone.setFill(Color.WHITE);
-          stone.setStroke(Color.GRAY);
+          stone.setFill(Color.web("#f8f8f8"));
+          stone.setStroke(Color.web("#d0d0d0"));
+          stone.setStrokeWidth(1.5);
+          stone.setEffect(new DropShadow(6.0, 2.0, 2.0, Color.color(0, 0, 0, 0.4)));
         }
 
         cell.getChildren().add(stone);

@@ -16,11 +16,11 @@ public class MoveEntity {
   @Min(1)
   private int moveNumber;
   
-  @Min(0)
+  @Min(-1)
   @Max(18)
   private int x;
   
-  @Min(0)
+  @Min(-1)
   @Max(18)
   private int y;
 
@@ -45,6 +45,10 @@ public class MoveEntity {
     this.y = y;
     this.color = color;
     this.type = type;
+  }
+
+  public int getMoveNumber() {
+    return moveNumber;
   }
 
   public int getX() {

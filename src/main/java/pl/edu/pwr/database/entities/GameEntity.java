@@ -38,6 +38,18 @@ public class GameEntity {
     return id;
   }
 
+  public String getPlayerBlackType() {
+    return playerBlackType;
+  }
+
+  public String getPlayerWhiteType() {
+    return playerWhiteType;
+  }
+
+  public String getResult() {
+    return result;
+  }
+
   public void setPlayerBlackType(String type) {
     this.playerBlackType = type;
   }
