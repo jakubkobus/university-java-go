@@ -14,7 +14,7 @@ package "pl.edu.pwr.logic" {
   class Point <<record>> {
     - x : int
     - y : int
-    - - -
+    ---
     + Point(x: int, y: int)
     + x() : int
     + y() : int
@@ -23,7 +23,7 @@ package "pl.edu.pwr.logic" {
   class Board {
     - size : int
     - grid : Stone[][]
-    - - -
+    ---
     + Board(size: int)
     + Board(other: Board)
     + getNeighbors(x: int, y: int) : List<Point>
@@ -37,8 +37,19 @@ package "pl.edu.pwr.logic" {
   }
 
   class BoardFactory <<Factory Method>> {
-    - - -
+    ---
     + {static} createBoard(size: int) : Board
+  }
+
+  class GameConstants {
+    + {static} BOARD_SIZE_9 : int = 9
+    + {static} BOARD_SIZE_13 : int = 13
+    + {static} BOARD_SIZE_19 : int = 19
+    + {static} STANDARD_BOARD_SIZE : int = 19
+    + {static} DEFAULT_KOMI : double = 6.5
+    + {static} PASSES_TO_END : int = 2
+    ---
+    - GameConstants()
   }
 
   enum GameState {
@@ -50,11 +61,40 @@ package "pl.edu.pwr.logic" {
   class GameResult <<record>> {
     - blackScore : int
     - whiteScore : int
-    - - -
+    ---
     + GameResult(blackScore: int, whiteScore: int)
     + blackScore() : int
     + whiteScore() : int
     + winner() : String
+  }
+
+  class MoveResult <<record>> {
+    - success : boolean
+    - errorMessage : String
+    - reason : MoveFailureReason
+    ---
+    + MoveResult(success: boolean, errorMessage: String, reason: MoveFailureReason)
+    + success() : boolean
+    + errorMessage() : String
+    + reason() : MoveFailureReason
+    + {static} ofSuccess() : MoveResult
+    + {static} ofError(reason: MoveFailureReason, message: String) : MoveResult
+  }
+
+  enum MoveFailureReason {
+    SUCCESS
+    GAME_OVER
+    OUT_OF_BOUNDS
+    OCCUPIED
+    SUICIDE
+    KO_RULE
+  }
+
+  class CaptureHandler {
+    ---
+    + checkAndRemoveCaptures(board: Board, x: int, y: int, opponentColor: Stone) : List<Point>
+    + countGroupLiberties(board: Board, startX: int, startY: int, color: Stone) : int
+    - removeGroup(board: Board, startX: int, startY: int, color: Stone) : List<Point>
   }
 
   class Game {
@@ -64,59 +104,53 @@ package "pl.edu.pwr.logic" {
     - blackPrisoners : int
     - whitePrisoners : int
     - passesInRow : int
-    - consecutivePasses : int
+    - moveCount : int
     - gameOver : boolean
     - gameResult : String
     - state : GameState
-    - scoringService : ScoringService
     - scoringStrategy : IScoringStrategy
-    - - -
+    - scoringService : ScoringService
+    - captureHandler : CaptureHandler
+    - lastCapturedStones : List<Point>
+    ---
     + Game(size: int)
-    + {synchronized} makeMove(x: int, y: int) : boolean
+    + {synchronized} makeMove(x: int, y: int) : MoveResult
     + {synchronized} pass() : void
     + {synchronized} surrender(who: Stone) : void
     + {synchronized} finishGame() : void
     + {synchronized} removeDeadStone(x: int, y: int, requester: Stone) : String
     + {synchronized} placePrisonerAsDead(x: int, y: int, requester: Stone) : Boolean
-    + getBoard() : Board
-    + getCurrentPlayer() : Stone
-    + getBlackPrisoners() : int
-    + getWhitePrisoners() : int
-    + isGameOver() : boolean
-    + getGameResult() : String
-    + getState() : GameState
-    - checkCaptures(x: int, y: int, opponentColor: Stone) : void
-    - countGroupLiberties(startX: int, startY: int, color: Stone) : int
-    - removeGroup(startX: int, startY: int, color: Stone) : void
+    + {synchronized} getBoard() : Board
+    + {synchronized} getCurrentPlayer() : Stone
+    + {synchronized} getBlackPrisoners() : int
+    + {synchronized} getWhitePrisoners() : int
+    + {synchronized} isGameOver() : boolean
+    + {synchronized} getGameResult() : String
+    + {synchronized} getState() : GameState
+    + {synchronized} getLastCapturedStones() : List<Point>
+    {synchronized} getBoardForTesting() : Board
     - switchPlayer() : void
     - restoreBoard(backup: Board, bPris: int, wPris: int) : void
   }
 
   Board *-- Stone : zawiera >
-  Board --> "*" Point : zwraca >
+  Board +-- Point : definiuje >
   Game "1" *-- "1" Board : zawiera >
+  Game "1" *-- "1" CaptureHandler : używa >
   Game "1" o-- "1" GameState : ma >
   Game ..> BoardFactory : tworzy >
-  Game o-- IScoringStrategy : używa >
+  Game --> MoveResult : zwraca >
+  MoveResult +-- MoveFailureReason : definiuje >
+  CaptureHandler --> Board : modyfikuje >
+  CaptureHandler --> Point : zwraca listę >
 }
 
 package "pl.edu.pwr.logic.scoring" {
 
-  class TerritoryScanResult <<record>> {
-    - areaSize : int
-    - touchesBlack : boolean
-    - touchesWhite : boolean
-    - - -
-    + TerritoryScanResult(areaSize: int, touchesBlack: boolean, touchesWhite: boolean)
-    + areaSize() : int
-    + touchesBlack() : boolean
-    + touchesWhite() : boolean
-  }
-
   class TerritoryResult <<record>> {
     - blackTerritory : int
     - whiteTerritory : int
-    - - -
+    ---
     + TerritoryResult(blackTerritory: int, whiteTerritory: int)
     + blackTerritory() : int
     + whiteTerritory() : int
@@ -127,40 +161,106 @@ package "pl.edu.pwr.logic.scoring" {
   }
 
   class ScoringService {
-    - - -
+    ---
     + calculateTerritory(board: Board) : TerritoryResult
     + isPrisonerRemovable(board: Board, x: int, y: int, playerColor: Stone) : boolean
     - scanEmptyArea(board: Board, x: int, y: int, visited: boolean[][]) : TerritoryScanResult
   }
 
+  class TerritoryScanResult <<record>> {
+    - areaSize : int
+    - touchesBlack : boolean
+    - touchesWhite : boolean
+    ---
+    + TerritoryScanResult(areaSize: int, touchesBlack: boolean, touchesWhite: boolean)
+    + areaSize() : int
+    + touchesBlack() : boolean
+    + touchesWhite() : boolean
+  }
+
   class ScoringStrategy implements IScoringStrategy {
     - scoringService : ScoringService
-    - - -
+    ---
     + ScoringStrategy()
     + score(board: Board, blackPrisoners: int, whitePrisoners: int) : GameResult
   }
 
   IScoringStrategy <|.. ScoringStrategy : implementuje
-  ScoringStrategy o-- ScoringService : używa >
+  ScoringStrategy "1" o-- "1" ScoringService : używa >
   ScoringService --> TerritoryScanResult : tworzy >
-  ScoringStrategy --> TerritoryResult : zwraca >
   ScoringService --> TerritoryResult : zwraca >
+  ScoringStrategy --> GameResult : zwraca >
+  Game o-- IScoringStrategy : używa >
+  Game o-- ScoringService : używa >
+}
+
+package "pl.edu.pwr.exception" {
+  
+  class GoGameException extends RuntimeException {
+    ---
+    + GoGameException(message: String)
+    + GoGameException(message: String, cause: Throwable)
+  }
+
+  class InvalidMoveException extends GoGameException {
+    ---
+    + InvalidMoveException(message: String)
+  }
+
+  class GameOverException extends GoGameException {
+    ---
+    + GameOverException(message: String)
+  }
+
+  class WrongTurnException extends GoGameException {
+    ---
+    + WrongTurnException(message: String)
+  }
+
+  class GamePersistenceException extends GoGameException {
+    ---
+    + GamePersistenceException(message: String)
+    + GamePersistenceException(message: String, cause: Throwable)
+  }
+
+  class GlobalExceptionHandler {
+    ---
+    + handleGoGameException(ex: GoGameException) : String
+    + handleGenericException(ex: Exception) : String
+  }
+
+  GoGameException <|-- InvalidMoveException
+  GoGameException <|-- GameOverException
+  GoGameException <|-- WrongTurnException
+  GoGameException <|-- GamePersistenceException
 }
 
 package "pl.edu.pwr.server" {
 
   class ServerApp {
-    - - -
+    ---
     + {static} main(args: String[]) : void
   }
 
   class Server <<Singleton>> {
     - {static} instance : Server
     - isRunning : boolean
-    - - -
+    - gameService : GameService
+    ---
     - Server()
     + {static} getInstance() : Server
     + start(port: int) : void
+  }
+
+  class ServerMessages {
+    + {static} INVALID_COMMAND : String
+    + {static} INVALID_COORDS : String
+    + {static} NOT_YOUR_TURN : String
+    + {static} GAME_OVER : String
+    + {static} MOVE_SUCCESS : String
+    + {static} OPPONENT_DISCONNECTED : String
+    ---
+    - ServerMessages()
   }
 
   class ClientHandler implements Runnable {
@@ -172,8 +272,10 @@ package "pl.edu.pwr.server" {
     - myColor : Stone
     - game : Game
     - commands : Map<String, Command>
-    - - -
-    + ClientHandler(socket: Socket, playerId: int, game: Game)
+    - gameService : GameService
+    - gameId : Long
+    ---
+    + ClientHandler(socket: Socket, playerId: int, game: Game, gameService: GameService)
     + run() : void
     + setOpponent(opponent: ClientHandler) : void
     + getOpponent() : ClientHandler
@@ -187,65 +289,185 @@ package "pl.edu.pwr.server" {
       {abstract} + execute(args: String[], sender: ClientHandler) : void
     }
 
-    class MoveCommand implements Command {
-      - game : Game
-      - - -
+    abstract class BaseCommand implements Command {
+      # game : Game
+      # gameService : GameService
+      # gameId : Long
+      ---
+      + BaseCommand(game: Game, gameService: GameService, gameId: Long)
+      + BaseCommand(game: Game)
+      # sendToOpponent(sender: ClientHandler, message: String) : void
+      # sendToAll(sender: ClientHandler, message: String) : void
+      # parseCoordinate(str: String) : int
+      {abstract} + execute(args: String[], sender: ClientHandler) : void
+    }
+
+    class MoveCommand extends BaseCommand {
+      ---
+      + MoveCommand(game: Game, gameService: GameService, gameId: Long)
       + MoveCommand(game: Game)
       + execute(args: String[], sender: ClientHandler) : void
     }
 
-    class PassCommand implements Command {
-      - game : Game
-      - - -
+    class PassCommand extends BaseCommand {
+      ---
+      + PassCommand(game: Game, gameService: GameService, gameId: Long)
       + PassCommand(game: Game)
       + execute(args: String[], sender: ClientHandler) : void
     }
 
-    class SurrenderCommand implements Command {
-      - game : Game
-      - - -
+    class SurrenderCommand extends BaseCommand {
+      ---
+      + SurrenderCommand(game: Game, gameService: GameService, gameId: Long)
       + SurrenderCommand(game: Game)
       + execute(args: String[], sender: ClientHandler) : void
     }
 
-    class RemoveCommand implements Command {
-      - game : Game
-      - - -
+    class RemoveCommand extends BaseCommand {
+      ---
+      + RemoveCommand(game: Game, gameService: GameService, gameId: Long)
       + RemoveCommand(game: Game)
       + execute(args: String[], sender: ClientHandler) : void
     }
 
-    class FillCommand implements Command {
-      - game : Game
-      - - -
+    class FillCommand extends BaseCommand {
+      ---
+      + FillCommand(game: Game, gameService: GameService, gameId: Long)
       + FillCommand(game: Game)
       + execute(args: String[], sender: ClientHandler) : void
     }
 
-    Command <|.. MoveCommand : implementuje
-    Command <|.. PassCommand : implementuje
-    Command <|.. SurrenderCommand : implementuje
-    Command <|.. RemoveCommand : implementuje
-    Command <|.. FillCommand : implementuje
+    Command <|.. BaseCommand : implementuje
+    BaseCommand <|-- MoveCommand
+    BaseCommand <|-- PassCommand
+    BaseCommand <|-- SurrenderCommand
+    BaseCommand <|-- RemoveCommand
+    BaseCommand <|-- FillCommand
 
-    MoveCommand --> Game : modyfikuje >
-    PassCommand --> Game : modyfikuje >
-    SurrenderCommand --> Game : modyfikuje >
-    RemoveCommand --> Game : modyfikuje >
-    FillCommand --> Game : modyfikuje >
+    BaseCommand --> Game : modyfikuje >
+    BaseCommand --> ServerMessages : używa >
   }
 
   ServerApp ..> Server : uruchamia >
   Server "1" --> "*" ClientHandler : tworzy i obsługuje >
-  ClientHandler "*" --> "*" ClientHandler : <opponent> >
+  ClientHandler "*" o-- "*" ClientHandler : <opponent> >
   ClientHandler "1" --> "1" Game : gra >
-  ClientHandler o-- "5" Command : posiada >
+  ClientHandler o-- "*" Command : posiada >
+}
+
+package "pl.edu.pwr.database" {
+
+  package "entities" {
+    class GameEntity {
+      - id : Long
+      - boardSize : int
+      - createdAt : LocalDateTime
+      - finishedAt : LocalDateTime
+      - result : String
+      - moves : List<MoveEntity>
+      ---
+      + GameEntity()
+      + getId() : Long
+      + getBoardSize() : int
+      + setBoardSize(size: int) : void
+      + getCreatedAt() : LocalDateTime
+      + setCreatedAt(time: LocalDateTime) : void
+      + getFinishedAt() : LocalDateTime
+      + setFinishedAt(time: LocalDateTime) : void
+      + getResult() : String
+      + setResult(result: String) : void
+      + getMoves() : List<MoveEntity>
+      + setMoves(moves: List<MoveEntity>) : void
+    }
+
+    class MoveEntity {
+      - id : Long
+      - game : GameEntity
+      - moveNumber : int
+      - playerColor : String
+      - x : Integer
+      - y : Integer
+      - moveType : String
+      - timestamp : LocalDateTime
+      ---
+      + MoveEntity()
+      + getId() : Long
+      + getGame() : GameEntity
+      + setGame(game: GameEntity) : void
+      + getMoveNumber() : int
+      + setMoveNumber(num: int) : void
+      + getPlayerColor() : String
+      + setPlayerColor(color: String) : void
+      + getX() : Integer
+      + getY() : Integer
+      + setX(x: Integer) : void
+      + setY(y: Integer) : void
+      + getMoveType() : String
+      + setMoveType(type: String) : void
+      + getTimestamp() : LocalDateTime
+      + setTimestamp(time: LocalDateTime) : void
+    }
+
+    GameEntity "1" --> "*" MoveEntity : zawiera >
+  }
+
+  package "repositories" {
+    interface GameRepository extends JpaRepository {
+      + findByOrderByCreatedAtDesc() : List<GameEntity>
+      + findByResultContaining(result: String) : List<GameEntity>
+    }
+  }
+
+  package "service" {
+    class GameService {
+      - gameRepository : GameRepository
+      ---
+      + GameService(gameRepository: GameRepository)
+      + createGame(boardSize: int) : GameEntity
+      + saveMove(gameId: Long, moveNumber: int, color: Stone, x: Integer, y: Integer, moveType: String) : void
+      + finishGame(gameId: Long, result: String) : void
+      + getAllGames() : List<GameEntity>
+      + getGameById(gameId: Long) : GameEntity
+    }
+  }
+
+  GameService --> GameRepository : używa >
+  GameService --> GameEntity : zarządza >
+  GameService --> MoveEntity : tworzy >
+  Server --> GameService : używa >
+  ClientHandler --> GameService : używa >
+  BaseCommand --> GameService : używa >
+}
+
+package "pl.edu.pwr.config" {
+  
+  class AppConfig {
+    ---
+    + dataSource() : DataSource
+    + entityManagerFactory() : LocalContainerEntityManagerFactoryBean
+    + transactionManager() : PlatformTransactionManager
+  }
+
+  class ServerProperties {
+    + {static} DEFAULT_PORT : int = 12345
+    + {static} DEFAULT_HOST : String = "localhost"
+    ---
+    - ServerProperties()
+  }
+
+  class DatabaseProperties {
+    + {static} DB_URL : String
+    + {static} DB_USERNAME : String
+    + {static} DB_PASSWORD : String
+    ---
+    - DatabaseProperties()
+  }
 }
 
 package "pl.edu.pwr.client" {
 
   class ClientApp {
-    - - -
+    ---
     + {static} main(args: String[]) : void
   }
 
@@ -256,7 +478,7 @@ package "pl.edu.pwr.client" {
   }
 
   class ConsoleView implements GameView {
-    - - -
+    ---
     + displayMessage(message: String) : void
     + clearScreen() : void
     + displayPrompt() : void
@@ -276,7 +498,7 @@ package "pl.edu.pwr.client" {
     - cleanupGroup : ToggleGroup
     - rbRemove : RadioButton
     - rbFill : RadioButton
-    - - -
+    ---
     + start(stage: Stage) : void
     - createBoard() : GridPane
     - handleBoardClick(x: int, y: int) : void
@@ -294,7 +516,7 @@ package "pl.edu.pwr.client" {
     - clientRef : ClientFacade
     - instance : GuiView
     - currentWindow : AppWindow
-    - - -
+    ---
     + startInteraction(client: ClientFacade) : void
     + displayMessage(message: String) : void
     + clearScreen() : void
@@ -306,7 +528,7 @@ package "pl.edu.pwr.client" {
     - out : PrintWriter
     - listenerThread : Thread
     - view : GameView
-    - - -
+    ---
     + ClientFacade(view: GameView)
     + connect(host: String, port: int) : void
     + sendMessage(message: String) : void
@@ -322,12 +544,42 @@ package "pl.edu.pwr.client" {
   GuiView "1" --> "1" AppWindow : zawiera >
 }
 
-Game <.. ScoringStrategy : ocenia grę >
-Game <.. ClientHandler : uruchamia >
-GameResult <.. ScoringStrategy : zwraca >
-TerritoryResult <.. ScoringService : zwraca >
-ScoringService <.. ScoringStrategy : używa >
-ClientFacade <.. ClientApp : inicjalizuje >
-ClientHandler <.. Server : tworzy >
+package "pl.edu.pwr.viewer" {
+
+  class GameViewerApp {
+    ---
+    + {static} main(args: String[]) : void
+  }
+
+  class GameViewerWindow {
+    - gameService : GameService
+    - viewerService : GameViewerService
+    - boardPane : GridPane
+    - gameListView : ListView<GameEntity>
+    - moveSlider : Slider
+    - currentMoveLabel : Label
+    - playButton : Button
+    - timeline : Timeline
+    ---
+    + start(stage: Stage) : void
+    - loadGameList() : void
+    - loadGame(gameEntity: GameEntity) : void
+    - displayMove(moveIndex: int) : void
+    - createBoard() : GridPane
+    - setStone(x: int, y: int, color: Stone) : void
+    - playGame() : void
+    - pauseGame() : void
+  }
+
+  class GameViewerService {
+    ---
+    + replayMoves(game: Game, moves: List<MoveEntity>, upToMove: int) : void
+  }
+
+  GameViewerApp ..> GameViewerWindow : uruchamia >
+  GameViewerWindow --> GameService : używa >
+  GameViewerWindow --> GameViewerService : używa >
+  GameViewerService --> Game : odtwarza na >
+}
 
 @enduml
