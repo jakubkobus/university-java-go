@@ -37,3 +37,7 @@ Thumbs.db
 .env
 .log
 *.log
+logs/
+
+# DB
+postgres-data/
