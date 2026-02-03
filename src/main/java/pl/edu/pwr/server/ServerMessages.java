@@ -97,4 +97,14 @@ public final class ServerMessages {
 
   /** Serwer: Przeciwnik dołączył */
   public static final String SERVER_OPPONENT_JOINED = "[SERWER] Przeciwnik dolaczyl. Gra sie rozpoczyna!";
+
+
+  /** Serwer: Powitanie i instrukcja wyboru trybu */
+  public static final String SERVER_WELCOME = "[SERWER] Witaj! Kliknij 'GRAJ Z BOTEM' aby grac z komputerem, lub 'JOIN' aby czekac na gracza.";
+
+  /** Serwer: Gra z botem rozpoczęta */
+  public static final String SERVER_BOT_STARTED = "[SERWER] Uruchomiono gre z BOTEM. Grasz czarnymi.";
+
+  /** Serwer: Błąd przy tworzeniu gry */
+  public static final String ERROR_GAME_CREATION = "ERR Nie udalo sie utworzyc gry.";
 }

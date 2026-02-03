@@ -28,7 +28,7 @@ public class Board {
   private final int size;
   
   /** Dwuwymiarowa tablica przechowująca kamienie na planszy */
-  private final Stone[][] grid;
+  private Stone[][] grid;
 
   /**
    * Konstruktor tworzący pustą planszę o określonym rozmiarze.
@@ -192,4 +192,8 @@ public class Board {
    * @param y współrzędna y punktu
    */
   public record Point(int x, int y) {}
+
+    void set(int x, int y, Stone stone) {
+       grid[x][y] = stone;
+    }
 }

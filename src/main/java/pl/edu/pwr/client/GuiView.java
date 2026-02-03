@@ -213,7 +213,15 @@ public class GuiView implements GameView {
       surrenderBtn.setPrefWidth(150);
       surrenderBtn.setOnAction(e -> clientRef.sendMessage("SURRENDER"));
 
-      actionButtons.getChildren().addAll(passBtn, surrenderBtn);
+      Button botBtn = createStyledButton("GRAJ Z BOTEM", "#e67e22", "#d35400");
+      botBtn.setPrefWidth(150);
+      botBtn.setOnAction(e -> clientRef.sendMessage("BOT"));
+
+      Button joinBtn = createStyledButton("GRAJ Z GRACZEM", "#e67e22", "#d35400");
+      joinBtn.setPrefWidth(150);
+      joinBtn.setOnAction(e -> clientRef.sendMessage("JOIN"));
+
+      actionButtons.getChildren().addAll(passBtn, surrenderBtn, botBtn, joinBtn);
 
       cleanupPanel = new VBox(10);
       cleanupPanel.setPadding(new Insets(12));

@@ -12,6 +12,10 @@ import pl.edu.pwr.server.commands.PassCommand;
 import pl.edu.pwr.server.commands.SurrenderCommand;
 import pl.edu.pwr.server.commands.RemoveCommand;
 import pl.edu.pwr.server.commands.FillCommand;
+import pl.edu.pwr.server.commands.BotCommand;
+import pl.edu.pwr.server.commands.JoinCommand;
+
+import pl.edu.pwr.logic.SimpleBot;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -23,195 +27,301 @@ import java.util.Map;
 
 /**
  * Obsługuje połączenie i komunikację z jednym klientem gry w Go.
- * 
+ * <p>
  * Odpowiada za:
  * <ul>
- *   <li>Zarządzanie połączeniem sieciowym z klientem</li>
- *   <li>Odczytywanie i przetwarzanie komend od klienta</li>
- *   <li>Wysyłanie stanu gry i wiadomości do klienta</li>
- *   <li>Egzekwowanie komend na obiekcie gry</li>
- *   <li>Synchronizacja akcji między dwoma graczami</li>
+ * <li>Zarządzanie połączeniem sieciowym z klientem (Socket).</li>
+ * <li>Parsowanie i wykonywanie komend przesyłanych przez gracza.</li>
+ * <li>Wysyłanie stanu gry i komunikatów zwrotnych do klienta.</li>
+ * <li>Synchronizację gry między dwoma ludźmi (PvP) lub graczem a botem (PvE).</li>
  * </ul>
- * 
- * Każdy ClientHandler działa w osobnym wątku i obsługuje jednego gracza.
- * ClientHandlery są sparowane (opponent) do komunikacji między graczami.
- * 
+ * <p>
+ * Klasa implementuje {@link Runnable}, dzięki czemu każda sesja klienta działa w osobnym wątku.
+ *
  * @author Jakub Kobus, Dawid Leśkiewicz
- * @version 1.0
- * @see Server
- * @see Command
+ * @version 1.1
  */
 public class ClientHandler implements Runnable {
-  
-  private static final Logger logger = LoggerFactory.getLogger(ClientHandler.class);
-  
-  /** Socket do komunikacji z klientem */
-  private Socket socket;
-  
-  /** BufferedReader do odczytywania komend od klienta */
-  private BufferedReader in;
-  
-  /** PrintWriter do wysyłania wiadomości do klienta */
-  private PrintWriter out;
-  
-  /** Identyfikator gracza (1 lub 2) */
-  private int playerId;
-  
-  /** Referencja do przeciwnika (drugi gracz) */
-  private ClientHandler opponent;
-  
-  /** Kolor kamieni przydzielony temu graczowi (BLACK lub WHITE) */
-  private Stone myColor;
-  
-  /** Instancja gry, na której gracze grają */
-  private Game game;
 
-  /** Mapa dostępnych komend */
-  private Map<String, Command> commands = new HashMap<>();
+    private static final Logger logger = LoggerFactory.getLogger(ClientHandler.class);
 
-  /** Serwis do zarządzania grami w bazie danych */
-  private GameService gameService;
+    /** Socket do komunikacji sieciowej z klientem. */
+    private Socket socket;
 
-  /** Identyfikator gry w bazie danych */
-  private Long gameId;
+    /** Bufor wejściowy do odczytywania komend od klienta. */
+    private BufferedReader in;
 
-  /**
-   * Konstruktor ClientHandler.
-   * Inicjalizuje obsługę klienta, przydziela kolor kamieni i rejestruje dostępne komendy.
-   * 
-   * @param socket socket do komunikacji z klientem
-   * @param playerId identyfikator gracza (1 = czarny, 2 = biały)
-   * @param game instancja gry, w której będzie grać klient
-   * @param gameService serwis do zarządzania grami w bazie danych
-   * @param gameId identyfikator gry w bazie danych
-   */
-  public ClientHandler(Socket socket, int playerId, Game game, GameService gameService, Long gameId) {
-    this.socket = socket;
-    this.playerId = playerId;
-    this.game = game;
-    this.myColor = (playerId == 1) ? Stone.BLACK : Stone.WHITE;
-    this.gameService = gameService;
-    this.gameId = gameId;
+    /** Strumień wyjściowy do wysyłania wiadomości do klienta. */
+    private PrintWriter out;
 
-    commands.put("MOVE", new MoveCommand(game, gameService, gameId));
-    commands.put("PASS", new PassCommand(game, gameService, gameId));
+    /** Identyfikator gracza w danej grze (1 - Czarny, 2 - Biały). */
+    private int playerId;
 
-    commands.put("SURRENDER", new SurrenderCommand(game));
-    commands.put("REMOVE", new RemoveCommand(game, gameService, gameId));
-    commands.put("FILL", new FillCommand(game, gameService, gameId));
-  }
+    /** Referencja do obiektu obsługującego drugiego gracza (tylko w trybie PvP). */
+    private ClientHandler opponent;
 
-  /**
-   * Ustawia odniesienie do przeciwnika (drugiego gracza).
-   * 
-   * @param opponent ClientHandler drugiego gracza
-   */
-  public void setOpponent(ClientHandler opponent) {
-    this.opponent = opponent;
-  }
+    /** Kolor kamieni przydzielony temu graczowi (BLACK lub WHITE). */
+    private Stone myColor;
 
-  /**
-   * Zwraca referencję do przeciwnika.
-   * 
-   * @return ClientHandler drugiego gracza
-   */
-  public ClientHandler getOpponent() {
-    return opponent;
-  }
+    /** Instancja gry, w której uczestniczy ten klient. */
+    private Game game;
 
-  /**
-   * Zwraca kolor kamieni gracza.
-   * 
-   * @return Stone reprezentujący kolor (BLACK lub WHITE)
-   */
-  public Stone getMyColor() {
-    return myColor;
-  }
+    /** Mapa dostępnych komend (klucz: nazwa komendy, wartość: obiekt wykonawczy). */
+    private Map<String, Command> commands = new HashMap<>();
 
-  /**
-   * Główna pętla wątku obsługującego klienta.
-   * 
-   * Przepływ:
-   * <ol>
-   *   <li>Inicjalizuje strumienie wejścia/wyjściaprocess</li>
-   *   <li>Wysyła początkowy stan planszy i informację o kolorze gracza</li>
-   *   <li>Wciąż czeka na i przetwarza komendy od klienta</li>
-   *   <li>Parsuje komendę i wyłania jej z mapy dostępnych komend</li>
-   *   <li>Wysyła komunikat błędu dla nieznanych komend</li>
-   *   <li>Obsługuje połączenia i błędy I/O</li>
-   * </ol>
-   */
-  @Override
-  public void run() {
-    try {
-      in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-      out = new PrintWriter(socket.getOutputStream(), true);
+    /** Serwis do obsługi operacji na bazie danych. */
+    private GameService gameService;
 
-      sendBoard();
-      out.println("Jestes graczem: " + (playerId == 1 ? "CZARNYM (B)" : "BIALYM (W)"));
+    /** Unikalne ID gry w bazie danych. */
+    private Long gameId;
 
-      String inputLine;
-      while((inputLine = in.readLine()) != null) {
-        logger.debug("Player {} sent command: {}", playerId, inputLine);
+    /** Flaga określająca, czy gra toczy się przeciwko botowi. */
+    private boolean isBotGame = false;
 
-        String[] parts = inputLine.split(" ");
-        String commandName = parts[0].toUpperCase();
+    /** Instancja prostej sztucznej inteligencji (używana, gdy isBotGame = true). */
+    private SimpleBot bot;
 
-        if(commands.containsKey(commandName)) {
-          commands.get(commandName).execute(parts, this);
-        } else {
-          sendMessage("ERR Nieznana komenda. Dostepne: MOVE x y, PASS, SURRENDER");
-        }
-      }
-    } catch (IOException e) {
-      logger.info("Player {} disconnected: {}", playerId, e.getMessage());
-    } finally {
-      try {
-        socket.close();
-        logger.info("Socket closed for player {}", playerId);
-      } catch(IOException e) {
-        logger.error("Failed to close socket for player {}", playerId, e);
-      }
+    /** Referencja do serwera (potrzebna np. do obsługi kolejki JOIN). */
+    private Server server;
+
+    /**
+     * Tworzy nowy uchwyt klienta.
+     * <p>
+     * Inicjalizuje podstawowe komendy dostępne przed rozpoczęciem gry (np. JOIN, BOT).
+     *
+     * @param socket      aktywne połączenie sieciowe z klientem
+     * @param gameService serwis bazodanowy
+     * @param server      referencja do głównego serwera
+     */
+    public ClientHandler(Socket socket, GameService gameService, Server server) {
+        this.socket = socket;
+        this.gameService = gameService;
+        this.server = server;
+
+        // Rejestracja komend startowych
+        commands.put("BOT", new BotCommand(gameService));
+        commands.put("JOIN", new JoinCommand(server));
+
+        // Rejestracja komend gry (wstępnie z nullami, zostaną nadpisane w assignGame)
+        // Jest to potrzebne, aby uniknąć NullPointerException przy próbie dostępu przed przypisaniem gry,
+        // choć lepszą praktyką jest assignGame. Tutaj inicjalizujemy dla bezpieczeństwa.
+        commands.put("MOVE", new MoveCommand(game, gameService, gameId));
+        commands.put("PASS", new PassCommand(game, gameService, gameId));
+        commands.put("SURRENDER", new SurrenderCommand(game));
+        commands.put("REMOVE", new RemoveCommand(game, gameService, gameId));
+        commands.put("FILL", new FillCommand(game, gameService, gameId));
     }
-  }
 
-  /**
-   * Wysyła aktualny stan planszy do klienta.
-   * 
-   * Wysyła:
-   * <ul>
-   *   <li>Komendę czyszczenia ekranu (CLS)</li>
-   *   <li>Wizualizację planszy</li>
-   *   <li>Informacje o stanie gry (czyja tura, czy gra skończona, itp.)</li>
-   * </ul>
-   */
-  public void sendBoard() {
-    out.println("CLS");
-    out.println(game.getBoard().toString());
+    /**
+     * Przypisuje klienta do konkretnej rozgrywki.
+     * <p>
+     * Metoda ustawia referencję do gry, ID gracza, kolor kamieni oraz
+     * rejestruje/aktualizuje komendy, które wymagają aktywnej instancji gry (MOVE, PASS itp.).
+     *
+     * @param game     instancja gry logicznej
+     * @param gameId   identyfikator gry w bazie danych
+     * @param playerId numer gracza (1 lub 2)
+     */
+    public void assignGame(Game game, Long gameId, int playerId) {
+        this.game = game;
+        this.gameId = gameId;
+        this.playerId = playerId;
+        this.myColor = (playerId == 1) ? Stone.BLACK : Stone.WHITE;
 
-    if (game.isGameOver()) {
-        out.println("=== GRA ZAKONCZONA ===");
-        out.println(game.getGameResult());
-    } else if (game.getState() == GameState.CLEANUP) {
-        out.println("=== FAZA USUWANIA MARTWYCH KAMIENI ===");
-        out.println("Wpisz: REMOVE x y aby usunac kamien przeciwnika");
-        out.println("Wpisz: FILL x y aby dodac jencow na teren przeciwnika");
-        out.println("Wpisz: PASS gdy usuniesz juz wszystkie martwe kamienie");
-    } else {
-        if(game.getCurrentPlayer() == myColor) {
-            out.println("--- TWOJA TURA (" + (myColor == Stone.BLACK ? "CZARNY" : "BIALY") + ") ---");
-        } else {
-            out.println("--- TURA PRZECIWNIKA ---");
+        // Rejestracja komend związanych z aktywną rozgrywką
+        commands.put("MOVE", new MoveCommand(game, gameService, gameId));
+        commands.put("PASS", new PassCommand(game, gameService, gameId));
+        commands.put("SURRENDER", new SurrenderCommand(game));
+        commands.put("REMOVE", new RemoveCommand(game, gameService, gameId));
+        commands.put("FILL", new FillCommand(game, gameService, gameId));
+        commands.put("JOIN", new JoinCommand(server));
+    }
+
+    /**
+     * Aktywuje tryb gry z botem.
+     * Ustawia flagę {@code isBotGame} i tworzy instancję bota.
+     */
+    public void enableBotMode() {
+        this.isBotGame = true;
+        this.bot = new SimpleBot();
+    }
+
+    /**
+     * Zwraca instancję gry przypisaną do tego klienta.
+     * @return obiekt gry
+     */
+    public Game getGame() {
+        return game;
+    }
+
+    /**
+     * Zarządza logiką wykonywania ruchów przez bota.
+     * <p>
+     * Metoda jest wywoływana po każdej komendzie gracza. Sprawdza stan gry i reaguje w dwóch przypadkach:
+     * <ol>
+     * <li><b>Gra w toku (IN_PROGRESS):</b> Jeśli tura należy do bota, symuluje czas namysłu, wykonuje ruch i odświeża planszę.</li>
+     * <li><b>Faza końcowa (CLEANUP):</b> Jeśli gra jest w fazie usuwania martwych kamieni, bot automatycznie pasuje,
+     * pozwalając graczowi na samodzielne oznaczenie terytorium.</li>
+     * </ol>
+     */
+    private void handleBotLogic() {
+        // SYTUACJA 1: Normalna gra (stawianie kamieni)
+        if (game.getState() == GameState.IN_PROGRESS && game.getCurrentPlayer() != myColor) {
+
+            // 1. Małe opóźnienie dla lepszego wrażenia (UX)
+            try {
+                Thread.sleep(500); // Pół sekundy przerwy
+            } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+
+            // 2. Bot wykonuje ruch (logika AI)
+            boolean moved = bot.performMove(game);
+
+            // 3. Informacja dla gracza co się stało
+            if (moved) {
+                sendMessage("INFO Bot postawil kamien.");
+            } else {
+                sendMessage("INFO Bot spasowal.");
+            }
+
+            // 4. Aktualizacja widoku planszy u gracza
+            sendBoard();
+        }
+
+        // SYTUACJA 2: Faza Cleanup (koniec gry, usuwanie martwych kamieni)
+        else if (game.getState() == GameState.CLEANUP && game.getCurrentPlayer() != myColor) {
+            // Bot ufa graczowi i pasuje, aby nie przeszkadzać w oznaczaniu terenu
+            game.pass();
+
+            sendMessage("INFO Bot akceptuje stan planszy (PASS w Cleanup).");
+
+            // Jeśli ten PASS zakończył grę definitywnie -> wyślij wynik
+            if (game.isGameOver()) {
+                sendBoard();
+            }
         }
     }
-  }
 
-  /**
-   * Wysyła wiadomość tekstową do klienta.
-   * 
-   * @param message treść wiadomości do wysłania
-   */
-  public void sendMessage(String message) {
-    out.println(message);
-  }
+    /**
+     * Ustawia odniesienie do przeciwnika (drugiego gracza).
+     * Używane w trybie PvP do przekazywania wiadomości między wątkami.
+     * * @param opponent ClientHandler drugiego gracza
+     */
+    public void setOpponent(ClientHandler opponent) {
+        this.opponent = opponent;
+    }
+
+    /**
+     * Zwraca referencję do przeciwnika.
+     * * @return ClientHandler drugiego gracza
+     */
+    public ClientHandler getOpponent() {
+        return opponent;
+    }
+
+    /**
+     * Zwraca gniazdo sieciowe klienta.
+     * @return obiekt Socket
+     */
+    public Socket getSocket() {
+        return socket;
+    }
+
+    /**
+     * Zwraca kolor kamieni gracza.
+     * * @return Stone reprezentujący kolor (BLACK lub WHITE)
+     */
+    public Stone getMyColor() {
+        return myColor;
+    }
+
+    /**
+     * Główna pętla wątku obsługującego klienta.
+     * <p>
+     * Odpowiada za:
+     * <ol>
+     * <li>Inicjalizację strumieni wejścia/wyjścia.</li>
+     * <li>Wysłanie powitania i przydziału koloru.</li>
+     * <li>Cykliczne oczekiwanie na komendy tekstowe od klienta.</li>
+     * <li>Rozpoznawanie i wykonywanie komend (wzorzec Command).</li>
+     * <li>Uruchamianie logiki bota (jeśli dotyczy) po ruchu gracza.</li>
+     * <li>Obsługę rozłączenia i zamknięcie zasobów.</li>
+     * </ol>
+     */
+    @Override
+    public void run() {
+        try {
+            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            out = new PrintWriter(socket.getOutputStream(), true);
+
+            out.println("Jestes graczem: " + (playerId == 1 ? "CZARNYM (B)" : "BIALYM (W)"));
+
+            String inputLine;
+            while((inputLine = in.readLine()) != null) {
+                logger.debug("Player {} sent command: {}", playerId, inputLine);
+
+                String[] parts = inputLine.split(" ");
+                String commandName = parts[0].toUpperCase();
+
+                if(commands.containsKey(commandName)) {
+                    // Wykonanie komendy gracza
+                    commands.get(commandName).execute(parts, this);
+
+                    // Jeśli gramy z botem i gra trwa, sprawdzamy czy bot ma wykonać ruch
+                    if (game != null && isBotGame && !game.isGameOver()) {
+                        handleBotLogic();
+                    }
+                } else {
+                    sendMessage("ERR Nieznana komenda. Dostepne: MOVE x y, PASS, SURRENDER");
+                }
+            }
+        } catch (IOException e) {
+            logger.info("Player {} disconnected: {}", playerId, e.getMessage());
+        } finally {
+            try {
+                socket.close();
+                logger.info("Socket closed for player {}", playerId);
+            } catch(IOException e) {
+                logger.error("Failed to close socket for player {}", playerId, e);
+            }
+        }
+    }
+
+    /**
+     * Generuje i wysyła aktualny stan planszy do klienta.
+     * <p>
+     * Wiadomość zawiera:
+     * <ul>
+     * <li>Komendę CLS (czyszczenie ekranu).</li>
+     * <li>Tekstową reprezentację planszy (ASCII).</li>
+     * <li>Kontekstowe informacje zależne od stanu gry (czyja tura, wynik końcowy, instrukcje fazy Cleanup).</li>
+     * </ul>
+     */
+    public void sendBoard() {
+        out.println("CLS");
+        out.println(game.getBoard().toString());
+
+        if (game.isGameOver()) {
+            out.println("=== GRA ZAKONCZONA ===");
+            out.println(game.getGameResult());
+        } else if (game.getState() == GameState.CLEANUP) {
+            out.println("=== FAZA USUWANIA MARTWYCH KAMIENI ===");
+            out.println("Wpisz: REMOVE x y aby usunac kamien przeciwnika");
+            out.println("Wpisz: FILL x y aby dodac jencow na teren przeciwnika");
+            out.println("Wpisz: PASS gdy usuniesz juz wszystkie martwe kamienie");
+        } else {
+            if(game.getCurrentPlayer() == myColor) {
+                out.println("--- TWOJA TURA (" + (myColor == Stone.BLACK ? "CZARNY" : "BIALY") + ") ---");
+            } else {
+                out.println("--- TURA PRZECIWNIKA ---");
+            }
+        }
+    }
+
+    /**
+     * Wysyła surową wiadomość tekstową do klienta.
+     * * @param message treść wiadomości
+     */
+    public void sendMessage(String message) {
+        out.println(message);
+    }
 }
