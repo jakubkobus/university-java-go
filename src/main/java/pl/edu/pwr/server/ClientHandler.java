@@ -9,6 +9,7 @@ import pl.edu.pwr.server.commands.PassCommand;
 import pl.edu.pwr.server.commands.SurrenderCommand;
 import pl.edu.pwr.server.commands.RemoveCommand;
 import pl.edu.pwr.server.commands.FillCommand;
+import pl.edu.pwr.server.commands.BotCommand;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -59,7 +60,7 @@ public class ClientHandler implements Runnable {
   private Stone myColor;
   
   /** Instancja gry, na której gracze grają */
-  private Game game;
+  protected Game game;
 
   /** Mapa dostępnych komend */
   private Map<String, Command> commands = new HashMap<>();
@@ -83,6 +84,7 @@ public class ClientHandler implements Runnable {
     commands.put("SURRENDER", new SurrenderCommand(game));
     commands.put("REMOVE", new RemoveCommand(game));
     commands.put("FILL", new FillCommand(game));
+    commands.put("BOT", new BotCommand(game));
   }
 
   /**
@@ -188,6 +190,14 @@ public class ClientHandler implements Runnable {
         }
     }
   }
+
+    public Game getGame() {
+        return game;
+    }
+
+    public boolean isConnected() {
+        return socket != null && !socket.isClosed() && socket.isConnected();
+    }
 
   /**
    * Wysyła wiadomość tekstową do klienta.

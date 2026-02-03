@@ -209,7 +209,13 @@ public class GuiView implements GameView {
       Button surrenderBtn = createStyledButton("SURRENDER", "#c0392b");
       surrenderBtn.setOnAction(e -> clientRef.sendMessage("SURRENDER"));
 
-      actionButtons.getChildren().addAll(passBtn, surrenderBtn);
+        Button botBtn = createStyledButton("GRAJ Z BOTEM", "#2ecc71"); // Zielony kolor
+        botBtn.setOnAction(e -> {
+            clientRef.sendMessage("BOT");
+            botBtn.setDisable(true); // Blokujemy, żeby nie dodać bota dwa razy
+        });
+
+      actionButtons.getChildren().addAll(passBtn, surrenderBtn, botBtn);
 
       cleanupPanel = new VBox(10);
       cleanupPanel.setStyle(

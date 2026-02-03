@@ -2,7 +2,6 @@ package pl.edu.pwr.server;
 
 import pl.edu.pwr.logic.Game;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 
@@ -33,6 +32,7 @@ public class Server {
   
   /** Flaga określająca, czy serwer powinien być uruchomiony */
   private volatile boolean isRunning = true;
+  private ClientHandler waitingHandler = null;
 
   /**
    * Konstruktor prywatny dla wzorca Singleton.
@@ -75,37 +75,68 @@ public class Server {
    * @param port numer portu, na którym serwer będzie nasłuchiwać (np. 8080)
    */
   public void start(int port) {
-    System.out.println("Serwer uruchamia sie na porcie " + port);
-    try(ServerSocket listener = new ServerSocket(port)) {
+      System.out.println("Serwer startuje na porcie " + port);
 
-      while(isRunning) {
-        Socket player1 = listener.accept();
-        System.out.println("[Gracz 1] dolaczyl");
-        
-        PrintWriter tempOut1 = new PrintWriter(player1.getOutputStream(), true);
-        tempOut1.println("[SERWER] Polaczono jako Gracz 1 (CZARNY). Czekanie na przeciwnika...");
+      try (ServerSocket listener = new ServerSocket(port)) {
 
-        Socket player2 = listener.accept();
-        System.out.println("[Gracz 2] dolaczyl");
-        PrintWriter tempOut2 = new PrintWriter(player2.getOutputStream(), true);
-        tempOut2.println("[SERWER] Polaczono jako Gracz 2 (BIALY). Gra sie rozpoczyna");
-        
-        tempOut1.println("[SERWER] Przeciwnik dolaczyl. Gra sie rozpoczyna!");
+          while (isRunning) {
+              try {
+                  Socket socket = listener.accept();
+                  System.out.println("[SERWER] Nowe polaczenie przychodzace...");
 
-        Game game = new Game(19);
+                  synchronized (this) {
+                      if (waitingHandler != null) {
+                          if (!waitingHandler.isConnected()) {
+                              System.out.println("[SERWER] WaitingHandler rozlaczony. Usuwam.");
+                              waitingHandler = null;
+                          } else if (waitingHandler.getOpponent() != null) {
+                              System.out.println("[SERWER] WaitingHandler juz gra. Usuwam z kolejki.");
+                              waitingHandler = null;
+                          }
+                      }
 
-        ClientHandler handler1 = new ClientHandler(player1, 1, game);
-        ClientHandler handler2 = new ClientHandler(player2, 2, game);
+                      if (waitingHandler != null) {
+                          System.out.println("[SERWER] Laczenie z oczekujacym graczem.");
 
-        handler1.setOpponent(handler2);
-        handler2.setOpponent(handler1);
+                          Game game = waitingHandler.getGame();
+                          ClientHandler player2 = new ClientHandler(socket, 2, game);
 
-        new Thread(handler1).start();
-        new Thread(handler2).start();
+                          waitingHandler.setOpponent(player2);
+                          player2.setOpponent(waitingHandler);
+
+                          new Thread(player2).start();
+
+                          waitingHandler.sendMessage("OPPONENT_JOINED");
+                          waitingHandler.sendMessage("INFO Dolaczyl przeciwnik! Zaczynamy.");
+                          player2.sendMessage("INFO Dolaczyles do gry. Zaczynamy.");
+
+                          waitingHandler.sendBoard();
+                          player2.sendBoard();
+
+                          waitingHandler = null;
+
+                      } else {
+                          System.out.println("[SERWER] Tworzenie nowej gry (Gracz 1).");
+
+                          Game newGame = new Game(19);
+                          ClientHandler player1 = new ClientHandler(socket, 1, newGame);
+
+                          waitingHandler = player1;
+
+                          new Thread(player1).start();
+                          player1.sendMessage("INFO Czekaj na przeciwnika lub wybierz bota.");
+                      }
+                  }
+
+              } catch (Exception e) {
+                  System.err.println("!!! [SERWER] Blad przy obsludze polaczenia: " + e.getMessage());
+                  e.printStackTrace();
+              }
+          }
+
+      } catch (IOException e) {
+          System.err.println("Krytyczny blad portu/serwera: " + e.getMessage());
+          e.printStackTrace();
       }
-
-    } catch(IOException e) {
-      e.printStackTrace();
-    }
   }
 }

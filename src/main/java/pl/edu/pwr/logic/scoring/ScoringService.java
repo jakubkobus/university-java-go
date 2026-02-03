@@ -85,8 +85,8 @@ public class ScoringService {
         Queue<Board.Point> queue = new LinkedList<>();
         queue.add(new Board.Point(x, y));
         visited[x][y] = true;
-
         int area = 0;
+
         boolean touchesBlack = false;
         boolean touchesWhite = false;
 

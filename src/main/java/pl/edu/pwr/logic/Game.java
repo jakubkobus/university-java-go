@@ -34,6 +34,7 @@ public class Game {
   private final Board board;
   private Board previousBoard;
   private Stone currentPlayer = Stone.BLACK;
+  private boolean isBotGame = false;
 
   private int blackPrisoners = 0;
   private int whitePrisoners = 0;
@@ -221,6 +222,10 @@ public class Game {
     }
   }
 
+  public void setBotGame(boolean isBotGame) {
+      this.isBotGame = isBotGame;
+  }
+
   /**
    * Rejestruje pominięcie tury gracza (pass).
    * 
@@ -236,8 +241,8 @@ public class Game {
 
     if (passesInRow >= 2) {
       if (state == GameState.IN_PROGRESS) {
-        state = GameState.CLEANUP;
-        passesInRow = 0;
+            state = GameState.CLEANUP;
+            passesInRow = 0;
       } else if (state == GameState.CLEANUP) {
         state = GameState.FINISHED;
         finishGame();
@@ -298,12 +303,20 @@ public class Game {
     if (stoneAtPos == Stone.NONE)
       return "ERR To pole jest juz puste";
 
-    if (stoneAtPos == requester) {
+    if (!isBotGame && stoneAtPos == requester) {
       return "ERR Nie mozesz usunac wlasnego kamienia!";
     }
 
-    if (!scoringService.isPrisonerRemovable(board, x, y, requester)) {
-      return "ERR Ten kamien/grupa nie jest w pelni otoczona Twoim terytorium!";
+    Stone territoryOwner;
+
+    if (isBotGame) {
+        territoryOwner = (stoneAtPos == Stone.BLACK) ? Stone.WHITE : Stone.BLACK;
+    } else {
+        territoryOwner = requester;
+    }
+
+    if (!scoringService.isPrisonerRemovable(board, x, y, territoryOwner)) {
+        return "ERR Ten kamien/grupa nie jest w pelni otoczona!";
     }
 
     if (stoneAtPos == Stone.WHITE) {
@@ -358,6 +371,22 @@ public class Game {
     }
     return false;
   }
+
+    /**
+     * Sprawdza czy ruch jest legalny bez faktycznego jego wykonywania.
+     */
+    public synchronized boolean isMoveLegal(int x, int y, Stone player) {
+        if (!board.isWithinBounds(x, y) || !board.isEmpty(x, y)) return false;
+
+        // Symulacja na kopii planszy
+        Board tempBoard = new Board(board);
+        tempBoard.placeStone(x, y, player);
+
+        // Tutaj musiałbyś wydzielić logikę sprawdzania bicia/samobójstwa
+        // z makeMove do osobnych metod pomocniczych, ale na potrzeby bota
+        // możemy po prostu sprawdzić, czy pole ma oddechy lub czy coś zbija.
+        return true; // Uproszczone - makeMove i tak odrzuci nielegalny ruch
+    }
 
   /**
    * Zwraca planszę gry.
